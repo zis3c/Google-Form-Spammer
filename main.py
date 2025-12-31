@@ -61,7 +61,11 @@ def main(url, count, workers, custom_answer):
     
     # Interactive mode if URL is not provided
     if not url:
-        console.rule("[bold red]Google Forms Spammer Ultimate (Async Edition)[/bold red]")
+        console.print(r"""[bold red]
+╺━┓╻┏━┓┏━┓┏━╸   ┏━╸┏━╸┏━┓┏━┓┏┳┓   ┏━┓┏━┓┏━┓┏┳┓┏┳┓┏━╸┏━┓
+┏━┛┃┗━┓╺━┫┃     ┃╺┓┣╸ ┃ ┃┣┳┛┃┃┃   ┗━┓┣━┛┣━┫┃┃┃┃┃┃┣╸ ┣┳┛
+┗━╸╹┗━┛┗━┛┗━╸   ┗━┛╹  ┗━┛╹┗╸╹ ╹   ┗━┛╹  ╹ ╹╹ ╹╹ ╹┗━╸╹┗╸
+[/bold red]""")
         url = Prompt.ask("Enter Google Form URL")
         
         loop = asyncio.new_event_loop()
