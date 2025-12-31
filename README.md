@@ -22,8 +22,8 @@ A high-performance, asynchronous Google Forms spammer built with Python and `aio
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/zis3c/Google-Form-Spammer
-   cd Google-Form-Spammer
+   git clone https://github.com/zis3c/google-form-spammer
+   cd google-form-spammer
    ```
 
 2. **Install dependencies**
