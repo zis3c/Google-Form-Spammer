@@ -1,4 +1,4 @@
-# Google Forms Spammer Ultimate
+# Google Forms Spammer
 
 ![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
