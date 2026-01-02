@@ -20,8 +20,36 @@ async def run_spam(url, count, workers, custom_answer=None):
         console.print("[bold red]Failed to fetch or parse the form.[/bold red]")
         return
 
-    console.print(f"[green]Successfully parsed {len(details.questions)} questions.[/green]")
-    console.print(Panel(str(json.dumps(details.questions, indent=2)), title="Detected Questions", expand=False))
+    # Display Questions Table
+    from rich.table import Table
+    from rich import box
+    
+    # Added padding for spacing and a '#' column
+    table = Table(
+        title="Detected Questions", 
+        box=box.ROUNDED, 
+        show_header=True, 
+        header_style="bold magenta", 
+        expand=True,
+        padding=(0, 2),
+        show_lines=True  # Separate each row with a line
+    )
+    # Use ratios to keep # and Type small, giving space to Text and Options
+    table.add_column("#", style="bold blue", justify="right", no_wrap=True, ratio=1)
+    table.add_column("Type", style="bold cyan", no_wrap=True, ratio=3)
+    # Question Text - White for readability
+    table.add_column("Question Text", style="bold white", ratio=10)
+    # Options - Yellow to stand out
+    table.add_column("Options", style="yellow", ratio=8)
+
+    for i, (q_id, q) in enumerate(details.questions.items(), 1):
+        opts = ", ".join(q.get("options", [])[:3])
+        if len(q.get("options", [])) > 3:
+                opts += f" (+{len(q.get('options', []))-3} more)"
+        table.add_row(str(i), q["type"], q["text"], opts)
+    
+    console.print(table)
+    console.print()
 
     spammer = AsyncFormSpammer(details)
     
@@ -30,9 +58,10 @@ async def run_spam(url, count, workers, custom_answer=None):
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
+        BarColumn(bar_width=None),
         TaskProgressColumn(),
         transient=False,
+        expand=True
     ) as progress:
         task = progress.add_task("[green]Spamming...", total=count)
         
@@ -51,7 +80,34 @@ async def run_spam(url, count, workers, custom_answer=None):
     if spammer.stats['errors']:
         console.print(Panel(str(json.dumps(spammer.stats['errors'], indent=2)), title="Error Summary", style="red"))
 
-@click.command()
+class RichHelpCommand(click.Command):
+    def format_help(self, ctx, formatter):
+        console.print()
+        console.print("[bold magenta]Google Forms Spammer - Educational Tool[/bold magenta]\n")
+        console.print("[bold cyan]Usage:[/bold cyan] [white]python main.py [OPTIONS][/white]\n")
+        
+        from rich.table import Table
+        from rich import box
+        
+        table = Table(box=None, padding=(0, 2), expand=False, show_header=False)
+        table.add_column("Option", style="bold green")
+        table.add_column("Description", style="white")
+        table.add_column("Default", style="dim")
+
+        for param in self.get_params(ctx):
+            name = "--" + param.name.replace("_", "-")
+            if param.secondary_opts:
+                 name += ", " + ", ".join(param.secondary_opts)
+            
+            help_text = param.help or ""
+            default = f"(default: {param.default})" if param.default is not None and str(param.default) != "None" else ""
+            
+            table.add_row(name, help_text, default)
+            
+        console.print("[bold yellow]Options:[/bold yellow]")
+        console.print(table)
+
+@click.command(cls=RichHelpCommand)
 @click.option('--url', help='Google Form URL')
 @click.option('--count', default=100, help='Number of requests to send', type=int)
 @click.option('--workers', default=50, help='Number of concurrent workers', type=int)
@@ -224,4 +280,15 @@ def main(url, count, workers, custom_answer):
         asyncio.run(run_spam(url, count, workers, custom_answer))
 
 if __name__ == '__main__':
-    main()
+    try:
+        main(standalone_mode=False)
+    except click.exceptions.Abort:
+         console.print("\n[bold red]Aborted![/bold red]")
+    except click.exceptions.UsageError as e:
+         console.print(f"\n[bold red]Error:[/bold red] {e.message}")
+         if e.ctx:
+             console.print(f"[dim]{e.ctx.get_help()}[/dim]")
+         else:
+             console.print("[dim]Run 'python main.py --help' for usage information.[/dim]")
+    except Exception as e:
+         console.print(f"\n[bold red]Unexpected Error:[/bold red] {e}")
