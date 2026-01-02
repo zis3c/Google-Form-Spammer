@@ -1,8 +1,4 @@
-selenium
-beautifulsoup4
-webdriver-manager
 faker
 rich
-requests
 aiohttp
 click

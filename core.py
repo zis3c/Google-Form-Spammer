@@ -98,16 +98,23 @@ class FormParser:
                                     options.append(opt[0])
                         
                         # Determine Type
-                        q_type = "Open Ended"
-                        if q_type_id == 2 or q_type_id == 5: # MC or Linear Scale
-                            q_type = "Multiple Choice"
-                        elif q_type_id == 4:
-                            q_type = "Checkbox"
-                        elif q_type_id == 3: # Dropdown
-                            q_type = "Multiple Choice"
-                        else:
-                             if options:
-                                  q_type = "Multiple Choice"
+                        # Mapping based on common Google Form type IDs
+                        type_map = {
+                            0: "Short Answer",
+                            1: "Paragraph",
+                            2: "Multiple Choice",
+                            3: "Dropdown",
+                            4: "Checkboxes",
+                            5: "Linear Scale",
+                            7: "Multiple Choice Grid",
+                            9: "Date",
+                            10: "Time"
+                        }
+                        q_type = type_map.get(q_type_id, "Open Ended")
+                        
+                        # Fallback heuristic if type is unknown but options exist (likely some choice type)
+                        if q_type == "Open Ended" and options:
+                             q_type = "Multiple Choice"
                         
                         parsed_questions[f"entry.{entry_id}"] = {
                             "text": q_text,
@@ -154,39 +161,75 @@ class AsyncFormSpammer:
         self.stats = {"success": 0, "failed": 0, "retries": 0, "errors": {}}
         self.user_agents = USER_AGENTS
 
-    def generate_response(self, custom_text: str = None) -> Dict[str, Any]:
-        """Generates a random response based on the questions."""
+    def generate_response(self, custom_text: str = None, custom_config: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Generates a response based on questions and custom configuration.
+        
+        Handles splitting Date/Time into proper component fields for Google Forms.
+        """
         response = {}
         for q_id, q_data in self.details.questions.items():
             answer = ""
-            if q_data["type"] == "Multiple Choice":
-                if q_data["options"]:
-                    answer = random.choice(q_data["options"])
-            elif q_data["type"] == "Checkbox":
-                if q_data["options"]:
-                    k = random.randint(1, len(q_data["options"]))
-                    answer = random.sample(q_data["options"], k)
-            elif q_data["type"] == "Open Ended":
-                if custom_text:
-                    answer = custom_text
-                else:
-                    q_text_lower = q_data["text"].lower()
-                    if "email" in q_text_lower:
-                        answer = faker.email()
-                    elif "name" in q_text_lower:
-                        answer = faker.name()
-                    elif "phone" in q_text_lower or "number" in q_text_lower:
-                        answer = faker.phone_number()
-                    elif "age" in q_text_lower:
-                        answer = str(random.randint(18, 99))
-                    elif "time" in q_text_lower:
-                        answer = faker.time(pattern="%H:%M")
-                    elif "date" in q_text_lower:
-                        answer = str(faker.date_between(start_date='-30y', end_date='today'))
-                    else:
-                        answer = faker.sentence()
+            q_type = q_data["type"]
             
-            response[q_id] = answer
+            # 1. Custom Config Priority
+            if custom_config and q_id in custom_config:
+                answer = custom_config[q_id]
+            else:
+                # 2. Random Generation
+                if q_type in ["Multiple Choice", "Dropdown", "Linear Scale", "Multiple Choice Grid"]:
+                    if q_data["options"]:
+                        answer = random.choice(q_data["options"])
+                elif q_type == "Checkboxes":
+                    if q_data["options"]:
+                        k = random.randint(1, len(q_data["options"]))
+                        answer = random.sample(q_data["options"], k)
+                elif q_type == "Date":
+                    answer = str(faker.date_between(start_date='-1y', end_date='today'))
+                elif q_type == "Time":
+                    answer = faker.time(pattern="%H:%M")
+                elif q_type in ["Short Answer", "Paragraph", "Open Ended"]:
+                    if custom_text:
+                        answer = custom_text
+                    else:
+                        q_text_lower = q_data["text"].lower()
+                        if "email" in q_text_lower:
+                            answer = faker.email()
+                        elif "name" in q_text_lower:
+                            answer = faker.name()
+                        elif "phone" in q_text_lower or "number" in q_text_lower:
+                            answer = faker.phone_number()
+                        elif "age" in q_text_lower:
+                            answer = str(random.randint(18, 99))
+                        elif "time" in q_text_lower:
+                            answer = faker.time(pattern="%H:%M")
+                        elif "date" in q_text_lower:
+                            answer = str(faker.date_between(start_date='-30y', end_date='today'))
+                        else:
+                            answer = faker.sentence() if q_type == "Short Answer" else faker.paragraph()
+            
+            # 3. Payload Formatting (Splitting Date/Time)
+            if q_type == "Date" and answer:
+                # Expect YYYY-MM-DD
+                try:
+                    y, m, d = answer.split('-')
+                    response[f"{q_id}_year"] = y
+                    response[f"{q_id}_month"] = m
+                    response[f"{q_id}_day"] = d
+                except:
+                    # Fallback if format is wrong (e.g. from custom input error), send as is?
+                    # Or just fail? Let's send as is to be safe, but it will likely 400.
+                    response[q_id] = answer
+            elif q_type == "Time" and answer:
+                # Expect HH:MM
+                try:
+                    h, m = answer.split(':')
+                    response[f"{q_id}_hour"] = h
+                    response[f"{q_id}_minute"] = m
+                except:
+                    response[q_id] = answer
+            else:
+                response[q_id] = answer
+                
         return response
 
     async def _send_request(self, session: aiohttp.ClientSession, data: Dict[str, Any], retry_count: int = 20):
@@ -239,7 +282,7 @@ class AsyncFormSpammer:
                 
         return False, "Unknown Error"
 
-    async def run(self, count: int, workers: int, custom_text: str = None, progress_callback=None):
+    async def run(self, count: int, workers: int, custom_text: str = None, custom_config: Dict[str, Any] = None, progress_callback=None):
         """Runs the spammer with N requests using M concurrent workers."""
         
         queue = asyncio.Queue()
@@ -256,7 +299,7 @@ class AsyncFormSpammer:
             async with aiohttp.ClientSession() as session:
                 while not queue.empty():
                     _ = await queue.get()
-                    data = self.generate_response(custom_text)
+                    data = self.generate_response(custom_text, custom_config)
                     success, err = await self._send_request(session, data)
                     
                     if not success and err:

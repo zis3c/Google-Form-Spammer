@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 
-A high-performance, asynchronous Google Forms spammer built with Python and `aiohttp`. Capable of sending thousands of requests concurrently with intelligent 429 status code (Rate Limit) handling and user-agent rotation.
+A high-performance, asynchronous Google Forms spammer built with Python and `aiohttp`. Capable of sending thousands of requests concurrently with intelligent 429 (Rate Limit) handling and user-agent rotation.
 
 > [!WARNING]
 > **Educational Purposes Only**: This tool is designed for educational purposes and stress testing systems you own. The authors are not responsible for any misuse.
@@ -12,10 +12,12 @@ A high-performance, asynchronous Google Forms spammer built with Python and `aio
 ## Features
 
 - 🚀 **High Performance**: Asynchronous architecture allowing massive concurrency.
-- 🔄 **Smart Handling**: Automatically handles 429 status code Rate Limits and server errors.
+- 🎨 **Modern UI**: Beautiful, color-coded CLI interface with `rich` tables and panels.
+- 🖥️ **Web Configurator**: Built-in web server to visually configure answers for complex forms.
+- 🔄 **Smart Handling**: Automatically handles 429 Rate Limits and server errors.
 - 🛡️ **Stealth**: Rotates User-Agents to mimic legitimate traffic.
-- 🤖 **Auto-Discovery**: Automatically parses form questions, options, and entry IDs.
-- 📝 **Flexible**: Supports Multiple Choice, Checkboxes, and Open-Ended questions.
+- 🤖 **Auto-Discovery**: Automatically parses form questions (Text, MCQ, Checkboxes, Date, Time).
+- 📝 **Validation**: Smart URL validation and retry loops for seamless user experience.
 - 💻 **CLI & Interactive**: Run it fully automated via arguments or interactively.
 
 ## Installation
@@ -38,7 +40,9 @@ Simply run the script without arguments:
 ```bash
 python main.py
 ```
-Follow the prompts to enter the Form URL, choose spam mode, and set worker count.
+Follow the prompts to enter the Form URL. You can choose between:
+1. **Random Generation**: Automatically fills fields with plausible data.
+2. **Custom Config**: Launches a local Web UI to visually configure specific answers for every question.
 
 ### Command Line Interface
 ```bash

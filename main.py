@@ -66,7 +66,15 @@ def main(url, count, workers, custom_answer):
 ┏━┛┃┗━┓╺━┫┃     ┃╺┓┣╸ ┃ ┃┣┳┛┃┃┃   ┗━┓┣━┛┣━┫┃┃┃┃┃┃┣╸ ┣┳┛
 ┗━╸╹┗━┛┗━┛┗━╸   ┗━┛╹  ┗━┛╹┗╸╹ ╹   ┗━┛╹  ╹ ╹╹ ╹╹ ╹┗━╸╹┗╸
 [/bold red]""")
-        url = Prompt.ask("Enter Google Form URL")
+        try:
+            while True:
+                url = Prompt.ask("Enter Google Form URL")
+                if "docs.google.com/forms" in url or "forms.gle" in url:
+                    break
+                console.print("[bold red]Invalid URL![/bold red] Please use a valid Google Forms link.\nExample: [dim]https://docs.google.com/forms/d/e/xxxxx/viewform[/dim]\n")
+        except KeyboardInterrupt:
+            console.print("\n[bold red]Aborted![/bold red]")
+            return
         
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -86,46 +94,130 @@ def main(url, count, workers, custom_answer):
                 details = await parser.fetch_details()
             
             if not details:
-                console.print("[bold red]Failed to fetch form.[/bold red]")
+                console.print("[bold red]Failed to fetch or parse form.[/bold red]")
                 return
 
-            console.print(Panel(str(json.dumps(details.questions, indent=2)), title="Detected Questions", expand=False))
+            # Display Questions Table
+            from rich.table import Table
+            from rich import box
             
-            if not Confirm.ask("Do these questions look correct?"):
-                 return
+            # Added padding for spacing and a '#' column
+            table = Table(
+                title="Detected Questions", 
+                box=box.ROUNDED, 
+                show_header=True, 
+                header_style="bold magenta", 
+                expand=True,
+                padding=(0, 2),
+                show_lines=True  # Separate each row with a line
+            )
+            # Use ratios to keep # and Type small, giving space to Text and Options
+            table.add_column("#", style="bold blue", justify="right", no_wrap=True, ratio=1)
+            table.add_column("Type", style="bold cyan", no_wrap=True, ratio=3)
+            # Question Text - White for readability
+            table.add_column("Question Text", style="bold white", ratio=10)
+            # Options - Yellow to stand out
+            table.add_column("Options", style="yellow", ratio=8)
+
+            for i, (q_id, q) in enumerate(details.questions.items(), 1):
+                opts = ", ".join(q.get("options", [])[:3])
+                if len(q.get("options", [])) > 3:
+                     opts += f" (+{len(q.get('options', []))-3} more)"
+                table.add_row(str(i), q["type"], q["text"], opts)
             
-            nonlocal custom_answer, count, workers
+            console.print(table)
+            console.print()
+
+            nonlocal count, workers, custom_answer
             
-            if not custom_answer:
-                mode = Prompt.ask("Random or Custom answers?", choices=["r", "c"], default="r")
-                if mode == "c":
-                    custom_answer = Prompt.ask("Custom answer")
-            
-            count = IntPrompt.ask("How many requests?", default=count)
-            workers = IntPrompt.ask("Concurrent workers?", default=workers)
-            
-            spammer = AsyncFormSpammer(details)
-            
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TaskProgressColumn(),
-                transient=False,
-            ) as progress:
-                task = progress.add_task("[green]Spamming...", total=count)
-                await spammer.run(count, workers, custom_text=custom_answer, progress_callback=lambda s: progress.update(task, advance=1))
+            while True:
+                custom_config = {}
+
+                # Mode Selection Panel
+                mode_panel = Panel(
+                    "[bold green]1. Random Mode[/bold green]\n"
+                    "   [dim]Automatically fills form with realistic random data.[/dim]\n\n"
+                    "[bold yellow]2. Custom Mode (Web UI)[/bold yellow]\n"
+                    "   [dim]Launch a visual editor to define specific answers.[/dim]",
+                    title="[bold magenta]Select Attack Mode[/bold magenta]",
+                    border_style="magenta"
+                )
+                console.print(mode_panel)
                 
-            console.print(Panel(f"[bold green]Done![/bold green]\n"
-                                f"Success: [bold green]{spammer.stats['success']}[/bold green]\n"
-                                f"Failed: [bold red]{spammer.stats['failed']}[/bold red]\n"
-                                f"Retries: [bold yellow]{spammer.stats['retries']}[/bold yellow]",
-                                title="Summary"))
+                mode_input = Prompt.ask(
+                    "[bold cyan]Choose Option[/bold cyan]", 
+                    choices=["1", "2"], 
+                    default="1",
+                    show_choices=False
+                )
 
-            if spammer.stats['errors']:
-                console.print(Panel(str(json.dumps(spammer.stats['errors'], indent=2)), title="Error Summary", style="red"))
+                if mode_input == "2":
+                    from configurator import run_configurator
+                    
+                    # Launching Panel
+                    console.print(Panel(
+                        "[bold]Server running at:[/bold] [link=http://localhost:8080]http://localhost:8080[/link]\n"
+                        "[dim](Click the link above or open in browser)[/dim]",
+                        title="[bold yellow]Web Configurator Launched[/bold yellow]",
+                        border_style="yellow"
+                    ))
+                    
+                    with console.status("[bold cyan]Waiting for configuration...[/bold cyan]", spinner="dots"):
+                        custom_config = await run_configurator(details)
+                    
+                    console.print(f"[bold green]✓ Configuration loaded for {len(custom_config)} fields[/bold green]")
+                else:
+                     console.print("[dim]Using Random Generation[/dim]")
+                
+                console.print()
+                console.rule("[bold red]Attack Parameters[/bold red]")
+                count = IntPrompt.ask("[:rocket:] [bold cyan]Number of Requests[/bold cyan]", default=count)
+                workers = IntPrompt.ask("[:zap:] [bold cyan]Concurrent Workers[/bold cyan]", default=workers)
+                console.print()
+                
+                spammer = AsyncFormSpammer(details)
+                
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(bar_width=None),
+                    TaskProgressColumn(),
+                    transient=False,
+                    expand=True
+                ) as progress:
+                    task = progress.add_task("[green]Spamming...", total=count)
+                    
+                    def update_progress(success):
+                        progress.update(task, advance=1)
 
-        loop.run_until_complete(interactive_flow())
+                    await spammer.run(
+                        count, 
+                        workers, 
+                        custom_text=custom_answer, 
+                        custom_config=custom_config,
+                        progress_callback=update_progress
+                    )
+                    
+                console.print(Panel(f"[bold green]Done![/bold green]\n"
+                                    f"Success: [bold green]{spammer.stats['success']}[/bold green]\n"
+                                    f"Failed: [bold red]{spammer.stats['failed']}[/bold red]\n"
+                                    f"Retries: [bold yellow]{spammer.stats['retries']}[/bold yellow]",
+                                    title="Summary"))
+
+                if spammer.stats['errors']:
+                    console.print(Panel(str(json.dumps(spammer.stats['errors'], indent=2)), title="Error Summary", style="red"))
+                
+                console.print()
+                if not Confirm.ask("[bold cyan]Run another attack?[/bold cyan]"):
+                    console.print("[bold green]Goodbye![/bold green]")
+                    break
+                console.print()
+
+        try:
+            loop.run_until_complete(interactive_flow())
+        except KeyboardInterrupt:
+            console.print("\n[bold red]Aborted![/bold red]")
+            return
         
     else:
         # Headless/CLI mode
