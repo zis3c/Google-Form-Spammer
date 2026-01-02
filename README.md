@@ -45,6 +45,12 @@ Follow the prompts to enter the Form URL. You can choose between:
 2. **Custom Config**: Launches a local Web UI to visually configure specific answers for every question.
 
 ### Command Line Interface
+To see all available options with descriptions:
+```bash
+python main.py --help
+```
+
+**Example Attack:**
 ```bash
 python main.py --url "https://docs.google.com/forms/d/e/..." --count 1000 --workers 100
 ```
@@ -55,6 +61,7 @@ python main.py --url "https://docs.google.com/forms/d/e/..." --count 1000 --work
 | `--count` | Number of requests to send | 100 |
 | `--workers` | Number of concurrent async workers | 50 |
 | `--custom-answer` | Custom text for open-ended questions | Random |
+| `--help` | Show the help message and exit | - |
 
 ## How It Works
 
