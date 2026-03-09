@@ -51,7 +51,7 @@ google-form-spammer/
 ├── configurator.py         # Web configurator - local UI for custom answer setup
 ├── requirements.txt        # Python dependencies
 ├── preview.png             # CLI/dashboard preview screenshot
-├── TOOL_DOCUMENTATION.txt  # Capabilities and awareness guide
+├── TOOL_DOCUMENTATION.md   # Capabilities and awareness guide
 └── CONTRIBUTING.md         # Contribution guidelines
 ```
 
