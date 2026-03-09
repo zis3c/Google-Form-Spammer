@@ -11,6 +11,8 @@
   <img src="preview.png" alt="Google Forms Spammer Preview" width="800">
 </p>
 
+📺 **Video Tutorial:** [**Watch how to use the repo here**](https://www.youtube.com/watch?v=WCD-5lONJO4)
+
 A high-performance, asynchronous Google Forms spammer built with Python and `aiohttp`. Capable of sending thousands of requests concurrently with intelligent 429 (Rate Limit) handling and user-agent rotation.
 
 > [!WARNING]

@@ -1,0 +1,31 @@
+GOOGLE FORM SPAMMER - CAPABILITIES & PREVENTION
+
+1. WHAT THIS TOOL DOES
+----------------------
+This tool is a powerful high-speed spammer. It is capable of sending 1,000+ fake responses in under 10 seconds. 
+
+It works by launching dozens of "bots" (workers) at the same time. These bots automatically find the questions in your form and fill them with random junk data or custom answers you choose. Because it runs so fast, it can ruin a survey's data in less than a minute.
+
+2. HOW TO STOP THIS SPAM (For Form Creators)
+--------------------------------------------
+If you are a form creator and want to BLOCK this tool, you need to turn on specific security settings in Google Forms. This tool works because it attacks "Public" and "Anonymous" forms.
+
+Here is how to stop it:
+
+A. REQUIRE GOOGLE SIGN-IN (Most Effective)
+   - Go to your Google Form "Settings" tab.
+   - Under "Responses", turn ON "Limit to 1 response".
+   - WHY IT WORKS: This forces every user to sign in with a real Google account. This tool does NOT sign in, so it will be instantly blocked.
+
+B. ADD A FILE UPLOAD QUESTION
+   - In your form editor, add a new question and select "File upload" as the type.
+   - WHY IT WORKS: Google automatically forces users to sign in when a form accepts files. This stops the spammer immediately because it cannot bypass the login screen.
+
+C. COLLECT VERIFIED EMAILS
+   - Go to Settings -> Responses -> Collect email addresses.
+   - Choose "Verified".
+   - WHY IT WORKS: This requires the user to be logged in to verify their email identity, blocking anonymous scripts.
+
+SUMMARY
+-------
+This spammer only destroys forms that are open to the public without protection. As soon as you add a "Sign-in" requirement (like limiting responses or asking for file uploads), this tool becomes useless.
