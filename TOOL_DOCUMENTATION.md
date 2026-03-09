@@ -1,10 +1,10 @@
-# google-form-spammer — Capabilities & Awareness
+# google-form-spammer - Capabilities & Awareness
 
 ## 1. What This Tool Does
 
 google-form-spammer is a high-speed, asynchronous Google Forms submission tool. It is capable of sending 1,000+ fake responses in under 10 seconds.
 
-It works by launching dozens of async workers simultaneously. These workers automatically discover every question in your form — including Text, MCQ, Checkboxes, Date, and Time fields — and fill them with randomly generated or custom-configured answers. Because it sends direct POST requests to Google's `formResponse` endpoint without ever loading a browser, it bypasses standard client-side protections and can saturate a form's response sheet in under a minute.
+It works by launching dozens of async workers simultaneously. These workers automatically discover every question in your form (including Text, MCQ, Checkboxes, Date, and Time fields) and fill them with randomly generated or custom-configured answers. Because it sends direct POST requests to Google's `formResponse` endpoint without ever loading a browser, it bypasses standard client-side protections and can saturate a form's response sheet in under a minute.
 
 It also rotates User-Agent headers to mimic legitimate browser traffic and handles 429 Rate Limit responses gracefully, retrying automatically to maximize throughput.
 
@@ -12,7 +12,7 @@ It also rotates User-Agent headers to mimic legitimate browser traffic and handl
 
 ## 2. How to Stop This Spam *(For Form Creators)*
 
-If you are a form creator and want to block this tool, you need to enable specific security settings in Google Forms. This tool only works against **public, anonymous** forms — the moment you require authentication, it becomes completely ineffective.
+If you are a form creator and want to block this tool, you need to enable specific security settings in Google Forms. This tool only works against **public, anonymous** forms. The moment you require authentication, it becomes completely ineffective.
 
 ### A. Require Google Sign-In *(Most Effective)*
 - Go to your Google Form **Settings** tab.
@@ -32,4 +32,4 @@ If you are a form creator and want to block this tool, you need to enable specif
 
 ## Summary
 
-This tool only affects forms that are open to the public without any authentication requirement. As soon as you add a sign-in requirement — by limiting responses, adding a file upload question, or collecting verified emails — this tool becomes completely useless against your form.
+This tool only affects forms that are open to the public without any authentication requirement. As soon as you add a sign-in requirement (by limiting responses, adding a file upload question, or collecting verified emails), this tool becomes completely useless against your form.
