@@ -6,7 +6,7 @@ The following is a set of guidelines for contributing to FormForge. These are mo
 
 ## Code of Conduct
 
-This project and everyone participating in it is governed by the [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+Be respectful: critique the code, not the person. Harassment, personal attacks, and deliberately disruptive behavior are not welcome, and maintainers may close or remove contributions that violate this.
 
 ## How Can I Contribute?
 
@@ -37,8 +37,14 @@ The process described here has several goals:
 - Engage the community in working toward the best possible tools.
 
 1.  **Fork the repo** and create your branch from `main`.
-2.  **Ensure your code lints**.
-3.  **Test your changes**.
+2.  **Ensure your code lints** and is formatted (see the Python styleguide below).
+3.  **Run the offline tests**:
+    ```bash
+    python test_core.py
+    python test_identity.py
+    python test_preset.py
+    ```
+    They never contact Google: `test_core.py` starts a throwaway local server. `test_preset.py` requires at least one `preset_*.json`; presets are gitignored, so pass your own path (`python test_preset.py my-preset.json`) if the repository root has none.
 4.  **Make sure your descriptive commit message** is clear.
 5.  **Push to your fork** and submit a pull request.
 
@@ -46,9 +52,15 @@ The process described here has several goals:
 
 ### Python Styleguide
 
-- Use [Black](https://github.com/psf/black) for code formatting.
+- Use [Black](https://github.com/psf/black) for code formatting if you have it installed; it is not a project dependency.
 - Write clean, readable code with comments where necessary.
-- Ensure all new features are asynchronous (`async/await`) where possible to maintain performance.
+- Keep the async pipeline non-blocking; parse, generate, and submit work stays in `async` functions.
+
+### Tests
+
+- Tests are plain scripts, not pytest suites; each one exits non-zero on failure.
+- They must stay offline. Never point a test at Google Forms or a live form.
+- Add a check when you change response classification, quota handling, or generated identity fields.
 
 ### Git Commit Messages
 

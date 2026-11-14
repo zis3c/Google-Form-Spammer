@@ -10,6 +10,8 @@ Beyond volume, the quota engine lets an operator target an *exact* distribution 
 
 It rotates User-Agent headers to mimic ordinary browser traffic and retries 408/429/5xx responses with exponential backoff, so soft rate limits only slow it down instead of stopping it.
 
+An HTTP 200 from `formResponse` does not by itself prove a response was stored: Google also answers with a page when a form is closed or a required answer is rejected. FormForge reads that page and classifies each attempt as verified, rejected, closed, or unverified, so a run report does not silently count refused submissions as successes. `--report run.jsonl` keeps one line per attempt (answers, verdict, error) plus a run summary, and the CLI compares configured quotas against the answers that were actually accepted.
+
 ---
 
 ## 2. How to Stop This *(For Form Creators)*

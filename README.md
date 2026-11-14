@@ -21,10 +21,10 @@ FormForge is an asynchronous Google Forms automation and load-testing tool built
 ## Features
 
 - 🚀 **Async engine**: `aiohttp` worker pool with configurable concurrency.
-- ⚖️ **Weighted pools & quotas**: per-option weights plus run-wide quotas for exact distributions, and `__pick` for checkbox questions.
+- ⚖️ **Weighted pools & quotas**: per-option weights plus run-wide quotas for exact distributions, and `__pick` for checkboxes and grid rows.
 - 📝 **Presets**: JSON files (`url`, `count`, `workers`, `config`) that drive `main.py --preset`; export/import from the web UI.
 - 🖥️ **Web UI**: parse the form, configure every question, run, watch live progress over SSE, cancel mid-run — browser only, no CLI needed.
-- 🤖 **Auto-discovery**: parses Text, Paragraph, MCQ, Dropdown, Checkboxes, Date, Time, and multi-page forms (correct `pageHistory` for every page).
+- 🤖 **Auto-discovery**: parses Short Answer, Paragraph, Multiple Choice, Dropdown, Checkboxes, Linear Scale, Multiple Choice Grid, Date, and Time questions, including multi-page forms (correct `pageHistory` for every page).
 - 🇮🇩 **Identitas Indonesia**: jawaban teks memakai satu profil konsisten per respons (nama, email, telepon, NIK, alamat, pendidikan) dari 2000 nama unik.
 - 🛡️ **Resilience**: automatic retry with exponential backoff for 408/429/5xx, User-Agent rotation.
 - ✅ **Verified submissions**: every HTTP 200 is checked against Google's confirmation page; a rejected or closed form counts as a failure, not a success.
@@ -50,13 +50,16 @@ FormForge is an asynchronous Google Forms automation and load-testing tool built
 ```
 google-form-spammer/
 ├── main.py                 # Main CLI - entry point for all modes
-├── core.py                 # Async engine - form parsing, response generation, submissions
+├── core.py                 # Async engine - form parsing, response generation, submissions, JSONL report
+├── identity.py             # Indonesian profile and question-aware text answers
+├── id_data.py              # Name, address, and education banks behind identity.py
 ├── configurator.py         # CLI-integrated configurator (launched from interactive mode)
 ├── webapp.py               # Standalone web app - the whole flow runs in the browser
 ├── web/index.html          # Single-page UI served by webapp.py
-├── preset_*.json          # Your presets (gitignored; export from the web UI)
-├── test_preset.py          # Offline checks: quota sums and distributions for preset_*.json
+├── preset_*.json           # Your presets (gitignored; export from the web UI)
 ├── test_core.py            # Offline checks: response classification and JSONL report
+├── test_identity.py        # Offline checks: profile consistency and field validation
+├── test_preset.py          # Offline checks: quota sums and distributions for preset_*.json
 ├── requirements.txt        # Python dependencies
 ├── preview.png             # CLI/dashboard preview screenshot
 ├── TOOL_DOCUMENTATION.md   # Capabilities and awareness guide
@@ -80,7 +83,7 @@ python webapp.py            # opens http://127.0.0.1:8000
 ```
 Paste the form URL, press **Parse**, then per question tick the options that may be used and set a weight/quota for each. Leave a question untouched to keep it fully random. Set the response count and workers, press **Mulai**, and watch live progress. **Export preset** downloads a JSON file that `main.py --preset` accepts; **Import preset** fills the UI from one.
 
-Options: `--host`, `--port`, `--no-browser`.
+Options: `--host`, `--port` (default `8000`), `--no-browser`. The web app accepts 1–100,000 responses and 1–200 workers, allows one run at a time, and rejects POSTs from other origins. It has no authentication, so binding `--host` to anything other than loopback exposes it to your network; the server prints a warning when you do.
 
 Quota totals per question must equal the response count for an exact distribution; the panel warns in amber when they differ.
 
@@ -124,11 +127,23 @@ A preset is a JSON file shaped like:
 }
 ```
 
-- `<qid>__pool`: list of `{value, weight, quota}`; quotas are enforced across the whole run.
-- `<qid>__pick`: how many options a Checkboxes question picks per response.
+- `<qid>__pool`: list of `{value, weight, quota}`; quotas are enforced across the whole run. A `weight` of `0` keeps an option listed but never picked.
+- `<qid>__pick`: how many options a Checkboxes question, or a Multiple Choice Grid row, picks per response (clamped to the number of options).
 - `<qid>` (bare): a fixed answer for every response.
 
 Run `python test_preset.py` to verify quota sums and distributions offline before submitting anything.
+
+## Tests
+
+Three offline scripts, no pytest and no network:
+
+```bash
+python test_core.py       # response classification and the JSONL report
+python test_identity.py   # profile consistency and field validation
+python test_preset.py     # quota sums and exact distributions for preset_*.json
+```
+
+Each exits non-zero on failure. `test_core.py` starts a throwaway local aiohttp server. `test_preset.py` accepts explicit paths (`python test_preset.py preset_40.json`) and otherwise checks every preset in the repository root; it needs at least one, and presets are gitignored, so a fresh clone has none to check.
 
 ## Verification and Report
 
@@ -149,7 +164,7 @@ Pass `--report` to keep an auditable log:
 python main.py --url "https://docs.google.com/forms/d/e/..." --count 100 --report run.jsonl
 ```
 
-The file is JSONL with a `run_start` line, one `response` line per attempt (`n`, `at`, `ok`, `verified`, `error`, `answers`), and a `run_end` line with the totals. It opens in append mode, so several interactive batches can share one file. At the end of a run the CLI also compares each configured quota with the number of accepted answers and prints only the mismatches.
+The file is JSONL with a `run_start` line, one `response` line per attempt (`n`, `at`, `ok`, `verified`, `error`, `answers`), and a `run_end` line with the totals. `verified` is `recorded`, `closed`, `rejected`, or `unknown`. It opens in append mode, so several interactive batches can share one file. At the end of a run the CLI also compares each configured quota with the number of accepted answers and prints only the mismatches.
 
 ## How It Works
 
