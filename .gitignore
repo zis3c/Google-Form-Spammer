@@ -2,6 +2,10 @@ __pycache__/
 *.py[cod]
 .env
 venv/
+.venv/
 .vscode/
 .idea/
 *.log
+.DS_Store
+
+preset_*.json
