@@ -1,7 +1,5 @@
 # FormForge - Capabilities & Awareness
 
-> Formerly published as `google-form-spammer`. The repository slug is unchanged; the tool is now **FormForge**.
-
 ## 1. What This Tool Does
 
 FormForge automates Google Forms submissions. It parses a public form's structure, generates synthetic responses from configured weights, quotas, or random data, and posts them concurrently to Google's `formResponse` endpoint. Throughput is bounded by concurrency and rate limiting rather than by browser automation: a few hundred workers can submit thousands of responses in seconds, and the resulting response sheet is indistinguishable from ordinary entries.

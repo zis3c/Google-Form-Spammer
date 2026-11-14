@@ -35,10 +35,9 @@ FormForge is an asynchronous Google Forms automation and load-testing tool built
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/zis3c/google-form-spammer
-   cd google-form-spammer
+   git clone https://github.com/BadryansahBangsawan/form-forge
+   cd form-forge
    ```
-   *(The GitHub slug still uses the project's original name; the tool itself is FormForge.)*
 
 2. **Install dependencies**
    ```bash
@@ -48,7 +47,7 @@ FormForge is an asynchronous Google Forms automation and load-testing tool built
 ## Project Structure
 
 ```
-google-form-spammer/
+form-forge/
 ├── main.py                 # Main CLI - entry point for all modes
 ├── core.py                 # Async engine - form parsing, response generation, submissions, JSONL report
 ├── identity.py             # Indonesian profile and question-aware text answers
