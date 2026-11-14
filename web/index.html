@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>FormForge</title>
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #222629;
+    --bg-deep: #1b1e20;
+    --surface: #282c2f;
+    --surface-2: #2d3236;
+    --input: #1d2022;
+    --border: rgba(244, 236, 216, .08);
+    --border-strong: rgba(244, 236, 216, .16);
+    --text: #f4ecd8;
+    --muted: #a68069;
+    --dim: #6b5b56;
+    --accent: #d9a566;
+    --accent-hover: #e5b97e;
+    --accent-ink: #241f19;
+    --ok: #9dbd92;
+    --bad: #c97f70;
+    --ring: rgba(217, 165, 102, .18);
+    --radius: 16px;
+  }
+  html { color-scheme: dark; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .glow {
+    position: fixed; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(900px 420px at 12% -12%, rgba(217, 165, 102, .10), transparent 62%),
+      radial-gradient(760px 400px at 92% -4%, rgba(107, 91, 86, .20), transparent 66%);
+  }
+  .shell { position: relative; max-width: 1040px; margin: 0 auto; padding: 0 24px 56px; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 72px; border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+  .mark {
+    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(160deg, var(--accent), var(--muted));
+    color: var(--accent-ink); font-size: 13px; font-weight: 800;
+  }
+  .env {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
+  }
+  .env-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+  .hero { padding: 56px 0 28px; max-width: 660px; }
+  .hero h1 {
+    margin: 0 0 10px; font-size: clamp(28px, 4vw, 38px); line-height: 1.12;
+    letter-spacing: -.025em; font-weight: 650;
+  }
+  .hero p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px;
+    box-shadow: inset 0 1px 0 rgba(244, 236, 216, .04), 0 18px 40px -30px rgba(0, 0, 0, .7);
+  }
+  main > .panel { margin-top: 16px; }
+
+  .label {
+    display: block; margin-bottom: 8px;
+    font-size: 11px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
+  }
+  input, textarea, button { font: inherit; color: inherit; }
+  input[type="text"], input[type="number"], textarea {
+    width: 100%; background: var(--input); border: 1px solid var(--border);
+    border-radius: 11px; padding: 11px 13px; color: var(--text); outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:hover, textarea:hover { border-color: var(--border-strong); }
+  input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
+  input::placeholder, textarea::placeholder { color: var(--dim); }
+  input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .url-row { display: flex; gap: 10px; align-items: flex-end; }
+  .url-field { flex: 1; min-width: 0; }
+  .url-row .btn { height: 44px; }
+
+  .setup-grid { display: grid; grid-template-columns: 150px 130px 1fr; gap: 16px; align-items: end; margin-top: 16px; }
+  .field { display: flex; flex-direction: column; }
+  .field input { height: 44px; }
+  .actions { display: flex; flex-direction: row; gap: 8px; justify-content: flex-end; }
+  .actions .btn { height: 44px; }
+
+  .statusline { display: flex; align-items: center; gap: 9px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .statusline p { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .status-dot {
+    flex: none; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 0 3px rgba(217, 165, 102, .12);
+    transition: background .2s, box-shadow .2s;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 40px; padding: 0 16px; border-radius: 11px; border: 1px solid transparent;
+    background: transparent; font-size: 14px; font-weight: 650; letter-spacing: -.01em;
+    cursor: pointer; white-space: nowrap;
+    transition: background .15s, border-color .15s, color .15s, transform .06s;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .42; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:not(:disabled):hover { background: var(--accent-hover); }
+  .btn-ghost { border-color: var(--border-strong); color: var(--text); }
+  .btn-ghost:not(:disabled):hover { background: var(--surface-2); border-color: var(--dim); }
+
+  .questions {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 14px; margin-top: 16px; align-items: start;
+  }
+  .questions:empty { display: none; }
+  .qcard {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; box-shadow: inset 0 1px 0 rgba(244, 236, 216, .03);
+  }
+  .q-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 12px; }
+  .num {
+    display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px;
+    border-radius: 7px; background: rgba(217, 165, 102, .12); color: var(--accent);
+    font-size: 11.5px; font-weight: 700;
+  }
+  .badge {
+    padding: 3px 8px; border: 1px solid var(--border-strong); border-radius: 999px;
+    font-size: 10px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+  }
+  .q-text { flex-basis: 100%; font-size: 14.5px; font-weight: 600; line-height: 1.4; }
+
+  .muted { color: var(--dim); font-size: 12.5px; }
+  .opt-row {
+    display: grid; grid-template-columns: auto 1fr 74px 74px; gap: 9px; align-items: center;
+    padding: 7px 8px; border-radius: 9px;
+  }
+  .opt-row:hover { background: rgba(244, 236, 216, .035); }
+  .opt-head {
+    display: grid; grid-template-columns: auto 1fr 74px 74px; gap: 9px;
+    padding: 0 8px; margin: -2px 0 2px;
+    font-size: 10px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; color: var(--dim);
+  }
+  .opt-head span:nth-child(3), .opt-head span:nth-child(4) { text-align: center; }
+  .opt { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+  .lbl { font-size: 13.5px; line-height: 1.35; color: var(--text); cursor: pointer; }
+  .opt-row .w, .opt-row .q { height: 32px; padding: 0 8px; text-align: center; border-radius: 8px; font-size: 12.5px; }
+
+  .row { display: flex; align-items: center; gap: 9px; margin-top: 10px; }
+  .row .fixed { flex: 1; min-width: 0; }
+  .row label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .row .pick { width: 70px; height: 34px; padding: 0 8px; text-align: center; }
+  textarea.tl { min-height: 84px; resize: vertical; font-size: 13px; line-height: 1.55; }
+  .quota { margin-top: 10px; font-size: 12px; color: var(--dim); }
+  .quota.good { color: var(--ok); }
+  .quota.bad { color: var(--bad); }
+
+  .run-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+  .run-head .label { margin-bottom: 6px; }
+  .run-id { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--muted); }
+  .run-id:empty { display: none; }
+  .run-actions { display: flex; gap: 8px; }
+  .bar { height: 8px; border-radius: 999px; background: var(--input); border: 1px solid var(--border); overflow: hidden; }
+  #fill { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--muted), var(--accent)); transition: width .35s ease; }
+  .progress { margin: 14px 0 0; font-size: 13.5px; color: var(--muted); }
+  pre {
+    margin: 14px 0 0; padding: 14px; background: var(--input); border: 1px solid var(--border);
+    border-radius: 11px; color: var(--bad); font-size: 12.5px; line-height: 1.6;
+    white-space: pre-wrap; overflow: auto;
+  }
+
+  .hidden { display: none !important; }
+
+  @media (max-width: 720px) {
+    .shell { padding: 0 16px 40px; }
+    .topbar { height: 60px; }
+    .hero { padding: 36px 0 22px; }
+    .url-row { flex-direction: column; align-items: stretch; }
+    .url-row .btn { width: 100%; }
+    .setup-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .setup-grid .actions { grid-column: 1 / -1; justify-content: stretch; }
+    .actions .btn { flex: 1; }
+    .questions { grid-template-columns: 1fr; }
+    .run-head { flex-direction: column; align-items: stretch; }
+    .run-actions .btn { flex: 1; }
+    .opt-row { grid-template-columns: auto 1fr 64px 64px; gap: 7px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand"><span class="mark">F</span><span>FormForge</span></div>
+    <span class="env"><span class="env-dot"></span>lokal</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Isi form Google secara otomatis.</h1>
+      <p>Tempel URL form, atur distribusi jawaban per soal, lalu jalankan. Progres muncul langsung di halaman ini.</p>
+    </section>
+
+    <section class="panel">
+      <div class="url-row">
+        <label class="url-field">
+          <span class="label">URL Form</span>
+          <input id="url" type="text" placeholder="https://docs.google.com/forms/d/e/.../viewform" spellcheck="false">
+        </label>
+        <button id="parse" class="btn btn-primary">Muat</button>
+      </div>
+
+      <div class="setup-grid">
+        <label class="field"><span class="label">Jumlah respons</span><input id="count" type="number" value="10" min="1" max="5000"></label>
+        <label class="field"><span class="label">Worker</span><input id="workers" type="number" value="8" min="1" max="200"></label>
+        <div class="field actions">
+          <button id="import" class="btn btn-ghost">Impor preset</button>
+          <button id="export" class="btn btn-ghost">Ekspor preset</button>
+        </div>
+      </div>
+      <input id="file" type="file" accept="application/json" class="hidden">
+
+      <div class="statusline"><span class="status-dot" id="status-dot"></span><p id="status">Belum ada form.</p></div>
+    </section>
+
+    <section id="questions" class="questions"></section>
+
+    <section class="panel run">
+      <div class="run-head">
+        <div>
+          <span class="label">Progres</span>
+          <p id="run-id" class="run-id"></p>
+        </div>
+        <div class="run-actions">
+          <button id="start" class="btn btn-primary" disabled>Mulai</button>
+          <button id="cancel" class="btn btn-ghost" disabled>Batalkan</button>
+        </div>
+      </div>
+      <div class="bar"><div id="fill"></div></div>
+      <p id="progress" class="progress">Belum berjalan.</p>
+      <pre id="errors" class="hidden"></pre>
+    </section>
+  </main>
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+let questions = [];
+let presetConfig = null;
+let currentRun = null;
+let source = null;
+
+const TYPE_ID = {
+  'Multiple Choice': 'Pilihan ganda',
+  'Checkboxes': 'Kotak centang',
+  'Dropdown': 'Dropdown',
+  'Short Answer': 'Jawaban singkat',
+  'Paragraph': 'Paragraf',
+  'Open Ended': 'Jawaban terbuka',
+  'Linear Scale': 'Skala linear',
+  'Multiple Choice Grid': 'Kisi pilihan ganda',
+  'Checkbox Grid': 'Kisi kotak centang',
+  'Date': 'Tanggal',
+  'Time': 'Waktu',
+  'File Upload': 'Unggah berkas',
+};
+
+const STATUS_ID = {
+  running: 'berjalan',
+  done: 'selesai',
+  cancelled: 'dibatalkan',
+  error: 'gagal',
+};
+
+const ERROR_ID = {
+  'cross-origin': 'Permintaan ditolak karena origin tidak cocok.',
+  'content-type': 'Format permintaan tidak valid.',
+  'body': 'Isi permintaan tidak valid.',
+  'count': 'Jumlah respons tidak valid.',
+  'workers': 'Jumlah worker tidak valid.',
+  'config': 'Konfigurasi jawaban tidak valid.',
+  'conflict': 'Masih ada proses yang berjalan. Tunggu selesai atau batalkan dulu.',
+  'not-found': 'Proses tidak ditemukan.',
+};
+
+function errorText(text, status) {
+  try {
+    const data = JSON.parse(text);
+    if (data && data.error) return ERROR_ID[data.error] || data.error;
+  } catch {}
+  return text || `HTTP ${status}`;
+}
+
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[c]));
+
+function setStatus(text, bad) {
+  const el = $('#status');
+  el.textContent = text;
+  el.style.color = bad ? 'var(--bad)' : 'var(--muted)';
+  const dot = $('#status-dot');
+  if (dot) {
+    dot.style.background = bad ? 'var(--bad)' : 'var(--accent)';
+    dot.style.boxShadow = bad
+      ? '0 0 0 3px rgba(201, 127, 112, .14)'
+      : '0 0 0 3px rgba(217, 165, 102, .12)';
+  }
+}
+
+function renderQuestions() {
+  const wrap = $('#questions');
+  wrap.innerHTML = '';
+  questions.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'card qcard';
+    card.dataset.id = q.id;
+    card.dataset.type = q.type;
+
+    const hasOptions = (q.options || []).length > 0;
+    let body = '';
+
+    if (hasOptions) {
+      body += `<div class="muted" style="margin-bottom:.3rem">Centang opsi yang boleh dipakai. Kosong = semua opsi acak.</div>`;
+      body += `<div class="opt-head"><span></span><span></span><span>Bobot</span><span>Kuota</span></div>`;
+      body += (q.options || []).map((opt, idx) => `
+        <div class="opt-row" data-value="${esc(opt)}">
+          <input type="checkbox" class="opt" id="c_${i}_${idx}">
+          <label class="lbl" for="c_${i}_${idx}">${esc(opt)}</label>
+          <input type="number" class="w" placeholder="bobot" min="0" step="0.1" value="1" aria-label="bobot opsi ${esc(opt)}">
+          <input type="number" class="q" placeholder="kuota" min="0" step="1" aria-label="kuota opsi ${esc(opt)}">
+        </div>`).join('');
+      if (q.type === 'Checkboxes') {
+        body += `<div class="row"><label>Pilih per respons
+          <input type="number" class="pick" min="1" max="${q.options.length}" value="1" aria-label="pilih per respons"></label></div>`;
+      }
+      body += `<div class="quota muted"></div>`;
+    } else {
+      body += `<div class="row"><input type="text" class="fixed" placeholder="Nilai tetap (kosongkan untuk acak)" style="flex:1"></div>
+        <div class="muted" style="font-size:.8rem">Atau daftar berbobot, satu per baris: <code>nilai|bobot|kuota</code></div>
+        <textarea class="tl" rows="3" placeholder="18|6|10&#10;19|4|10" style="width:100%;margin-top:.4rem"></textarea>`;
+    }
+
+    card.innerHTML = `
+      <div class="q-head">
+        <span class="num">${i + 1}</span>
+        <span class="badge">${esc(TYPE_ID[q.type] || q.type)}</span>
+        <span class="q-text">${esc(q.text)}</span>
+      </div>${body}`;
+    wrap.appendChild(card);
+  });
+  wrap.querySelectorAll('.qcard').forEach((card) => {
+    card.addEventListener('input', () => updateQuota(card));
+    updateQuota(card);
+  });
+}
+
+function quotaPool(card) {
+  return [...card.querySelectorAll('.opt-row')]
+    .filter((row) => row.querySelector('.opt').checked)
+    .map((row) => ({
+      value: row.dataset.value,
+      weight: row.querySelector('.w').value === '' ? 1 : Number(row.querySelector('.w').value),
+      quota: row.querySelector('.q').value ? Number(row.querySelector('.q').value) : null,
+    }));
+}
+
+function updateQuota(card) {
+  const el = card.querySelector('.quota');
+  if (!el) return;
+  const pool = quotaPool(card);
+  if (!pool.length) {
+    el.textContent = 'Mode acak penuh (tanpa kuota).';
+    el.className = 'quota muted';
+    return;
+  }
+  const total = pool.reduce((sum, e) => sum + (e.quota || 0), 0);
+  const count = Number($('#count').value || 0);
+  const pickEl = card.querySelector('.pick');
+  const expected = pickEl ? count * Number(pickEl.value || 1) : count;
+  const anyQuota = pool.some((e) => e.quota);
+  el.textContent = `Kuota: ${total} / ${expected} respons`;
+  el.className = 'quota ' + (!anyQuota ? 'muted' : total === expected ? 'good' : 'bad');
+}
+
+function buildConfig() {
+  const cfg = {};
+  document.querySelectorAll('.qcard').forEach((card) => {
+    const qid = card.dataset.id;
+    if (card.querySelector('.opt-row')) {
+      const pool = quotaPool(card);
+      if (pool.length) cfg[qid + '__pool'] = pool;
+      const pick = card.querySelector('.pick');
+      if (pick && pick.value) cfg[qid + '__pick'] = Number(pick.value);
+    }
+    const fixed = card.querySelector('.fixed');
+    const tl = card.querySelector('.tl');
+    if (fixed && fixed.value.trim()) {
+      cfg[qid] = fixed.value.trim();
+    } else if (tl && tl.value.trim()) {
+      const pool = tl.value.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [value, weight, quota] = line.split('|').map((x) => (x || '').trim());
+        if (!value) return null;
+        return { value, weight: weight === '' ? 1 : (Number.isFinite(Number(weight)) ? Number(weight) : 1), quota: quota === '' || !Number.isFinite(Number(quota)) || Number(quota) < 1 ? null : Math.floor(Number(quota)) };
+      }).filter(Boolean);
+      if (pool.length) cfg[qid + '__pool'] = pool;
+    }
+  });
+  return cfg;
+}
+
+function applyConfig(cfg) {
+  document.querySelectorAll('.qcard').forEach((card) => {
+    const qid = card.dataset.id;
+    const pool = cfg[qid + '__pool'] || [];
+    pool.forEach((entry) => {
+      [...card.querySelectorAll('.opt-row')].forEach((row) => {
+        if (row.dataset.value.toLowerCase() !== String(entry.value).toLowerCase()) return;
+        row.querySelector('.opt').checked = true;
+        row.querySelector('.w').value = entry.weight ?? 1;
+        row.querySelector('.q').value = entry.quota ?? '';
+      });
+    });
+    if (card.querySelector('.opt-row') && cfg[qid]) {
+      const match = [...card.querySelectorAll('.opt-row')].find((r) =>
+        r.dataset.value.toLowerCase() === String(cfg[qid]).toLowerCase());
+      if (match) {
+        match.querySelector('.opt').checked = true;
+        match.querySelector('.w').value = 1;
+        match.querySelector('.q').value = '';
+      }
+    }
+    const pick = card.querySelector('.pick');
+    if (pick && cfg[qid + '__pick']) pick.value = cfg[qid + '__pick'];
+    const fixed = card.querySelector('.fixed');
+    if (fixed && cfg[qid]) fixed.value = cfg[qid];
+    const tl = card.querySelector('.tl');
+    if (tl && !cfg[qid] && pool.length) {
+      tl.value = pool.map((e) => [e.value, e.weight ?? 1, e.quota ?? ''].join('|')).join('\n');
+    }
+    updateQuota(card);
+  });
+}
+
+async function parseForm() {
+  const url = $('#url').value.trim();
+  if (!url) { setStatus('URL masih kosong.', true); return; }
+  setStatus('Mengambil form...');
+  $('#parse').disabled = true;
+  try {
+    const res = await fetch('/api/parse', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(errorText(text, res.status));
+    const data = JSON.parse(text);
+    questions = data.questions;
+    renderQuestions();
+    if (presetConfig) { applyConfig(presetConfig); presetConfig = null; }
+    $('#start').disabled = false;
+    setStatus(`${questions.length} soal terdeteksi.`);
+  } catch (err) {
+    setStatus(String(err.message || err), true);
+  } finally {
+    $('#parse').disabled = false;
+  }
+}
+
+async function startRun() {
+  if (!questions.length) { setStatus('Muat form dulu.', true); return; }
+  const payload = {
+    url: $('#url').value.trim(),
+    count: Number($('#count').value || 1),
+    workers: Number($('#workers').value || 8),
+    config: buildConfig(),
+  };
+  setStatus('Memulai...');
+  $('#start').disabled = true;
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(errorText(text, res.status));
+    const data = JSON.parse(text);
+    currentRun = data.run_id;
+    $('#run-id').textContent = `proses ${data.run_id}`;
+    $('#cancel').disabled = false;
+    watchRun(data.run_id);
+  } catch (err) {
+    setStatus(String(err.message || err), true);
+    $('#start').disabled = false;
+  }
+}
+
+function watchRun(runId) {
+  if (source) source.close();
+  source = new EventSource(`/api/run/${runId}/events`);
+  source.onmessage = (event) => {
+    const s = JSON.parse(event.data);
+    const pct = s.total ? Math.round((s.done / s.total) * 100) : 0;
+    $('#fill').style.width = `${pct}%`;
+    let prog = `${STATUS_ID[s.status] || s.status} · ${s.done}/${s.total} · sukses ${s.success}`;
+    prog += ` · gagal ${s.failed} · retry ${s.retries}`;
+    if (s.unverified) prog += ` · tak terverifikasi ${s.unverified}`;
+    if (s.error) prog += ` · ${esc(s.error)}`;
+    $('#progress').textContent = prog;
+    const errEl = $('#errors');
+    const keys = Object.keys(s.errors || {});
+    errEl.classList.toggle('hidden', !keys.length);
+    errEl.textContent = keys.map((k) => `${s.errors[k]}x ${k}`).join('\n');
+    if (s.status !== 'running') {
+      source.close();
+      source = null;
+      $('#cancel').disabled = true;
+      $('#start').disabled = false;
+      setStatus(s.status === 'done' ? 'Selesai.' : `Berhenti: ${STATUS_ID[s.status] || s.status}`, s.status !== 'done');
+    }
+  };
+  source.onerror = () => {
+    $('#progress').textContent = 'Koneksi progres terputus.';
+    $('#cancel').disabled = true;
+    $('#start').disabled = false;
+  };
+}
+
+async function cancelRun() {
+  if (!currentRun) return;
+  $('#cancel').disabled = true;
+  try {
+    await fetch(`/api/run/${currentRun}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+  } catch (err) {
+    setStatus(String(err.message || err), true);
+  }
+}
+
+function exportPreset() {
+  if (!questions.length) { setStatus('Muat form dulu.', true); return; }
+  const preset = {
+    url: $('#url').value.trim(),
+    count: Number($('#count').value || 1),
+    workers: Number($('#workers').value || 8),
+    config: buildConfig(),
+  };
+  const blob = new Blob([JSON.stringify(preset, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'preset.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importPreset(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      $('#url').value = data.url || $('#url').value;
+      if (data.count) $('#count').value = data.count;
+      if (data.workers) $('#workers').value = data.workers;
+      presetConfig = data.config || {};
+      if (questions.length) { applyConfig(presetConfig); presetConfig = null; }
+      setStatus('Preset dimuat.');
+    } catch (err) {
+      setStatus(`Preset tidak valid: ${err.message}`, true);
+    }
+  };
+  reader.readAsText(file);
+}
+
+$('#parse').addEventListener('click', parseForm);
+$('#url').addEventListener('keydown', (e) => { if (e.key === 'Enter') parseForm(); });
+$('#start').addEventListener('click', startRun);
+$('#cancel').addEventListener('click', cancelRun);
+$('#export').addEventListener('click', exportPreset);
+$('#import').addEventListener('click', () => $('#file').click());
+$('#file').addEventListener('change', (e) => {
+  if (e.target.files[0]) importPreset(e.target.files[0]);
+  e.target.value = '';
+});
+$('#count').addEventListener('input', () => {
+  document.querySelectorAll('.qcard').forEach(updateQuota);
+});
+</script>
