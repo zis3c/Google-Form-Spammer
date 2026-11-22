@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-11-22
+## [1.1.0] - 2026-11-22
 
 ### Added
 
@@ -29,5 +29,10 @@ All notable changes to this project are documented here. The format follows
 
 - Thanks to [@BadryansahBangsawan](https://github.com/BadryansahBangsawan) for the submission verification, the `--report` JSONL log, the Google Forms URL allow-list, multi-page `pageHistory`, the Date/Time/checkbox fixes, the retry cleanup, and the offline `test_core.py` test. Submitted in #1 and merged in curated form in #2.
 
-[Unreleased]: https://github.com/zis3c/Google-Form-Spammer/compare/v1.0.0...HEAD
+## [1.0.0] - 2026-01-02
+
+Earlier release with the web configurator and form parsing. See the [v1.0.0 release](https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.0.0).
+
+[Unreleased]: https://github.com/zis3c/Google-Form-Spammer/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.1.0
 [1.0.0]: https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.0.0
