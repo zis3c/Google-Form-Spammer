@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-11-22
+
 ### Added
 
 - Closed-form detection uses the `/closedform` redirect, so it works in any language.
@@ -73,7 +75,8 @@ All notable changes to this project are documented here. The format follows
 
 Earlier release with the web configurator and form parsing. See the [v1.0.0 release](https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.0.0).
 
-[Unreleased]: https://github.com/zis3c/Google-Form-Spammer/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/zis3c/Google-Form-Spammer/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.1.4
 [1.1.3]: https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.1.3
 [1.1.2]: https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.1.2
 [1.1.1]: https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.1.1
