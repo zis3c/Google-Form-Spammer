@@ -5,55 +5,74 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, IntPrompt, Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-from core import FormParser, AsyncFormSpammer
+from core import FormParser, SubmissionEngine, is_google_form_url
 
 console = Console()
 
-async def run_spam(url, count, workers, custom_answer=None):
-    """Orchestrates the spamming process."""
-    parser = FormParser(url)
-    
-    with console.status("[bold cyan]Fetching form details...[/bold cyan]"):
-        details = await parser.fetch_details()
-    
-    if not details:
-        console.print("[bold red]Failed to fetch or parse the form.[/bold red]")
-        return
-
-    # Display Questions Table
+def render_questions_table(details) -> None:
+    """Render the detected-questions table."""
     from rich.table import Table
     from rich import box
-    
-    # Added padding for spacing and a '#' column
+
     table = Table(
-        title="Detected Questions", 
-        box=box.ROUNDED, 
-        show_header=True, 
-        header_style="bold magenta", 
+        title="Detected Questions",
+        box=box.ROUNDED,
+        show_header=True,
+        header_style="bold magenta",
         expand=True,
         padding=(0, 2),
-        show_lines=True  # Separate each row with a line
+        show_lines=True
     )
-    # Use ratios to keep # and Type small, giving space to Text and Options
     table.add_column("#", style="bold blue", justify="right", no_wrap=True, ratio=1)
     table.add_column("Type", style="bold cyan", no_wrap=True, ratio=3)
-    # Question Text - White for readability
     table.add_column("Question Text", style="bold white", ratio=10)
-    # Options - Yellow to stand out
     table.add_column("Options", style="yellow", ratio=8)
 
     for i, (q_id, q) in enumerate(details.questions.items(), 1):
         opts = ", ".join(q.get("options", [])[:3])
         if len(q.get("options", [])) > 3:
-                opts += f" (+{len(q.get('options', []))-3} more)"
+            opts += f" (+{len(q.get('options', []))-3} more)"
         table.add_row(str(i), q["type"], q["text"], opts)
-    
+
     console.print(table)
     console.print()
 
-    spammer = AsyncFormSpammer(details)
-    
-    console.print(f"[bold yellow]Starting async spam attack with {count} requests using {workers} workers...[/bold yellow]")
+def render_summary(engine, count, report_path=None) -> None:
+    """Print the run summary, including unverified submissions."""
+    stats = engine.stats
+    summary = [
+        "[bold green]Done![/bold green]",
+        f"Requested: {count}",
+        f"Successful: [bold green]{stats['success']}[/bold green]",
+    ]
+    if stats["unverified"]:
+        summary.append(f"Unverified: [bold yellow]{stats['unverified']}[/bold yellow]")
+    summary.append(f"Failed: [bold red]{stats['failed']}[/bold red]")
+    summary.append(f"Retries: [bold yellow]{stats['retries']}[/bold yellow]")
+    console.print(Panel("\n".join(summary), title="Summary"))
+
+    if report_path:
+        console.print(f"[dim]Report: {report_path}[/dim]")
+
+    if stats['errors']:
+        console.print(Panel(str(json.dumps(stats['errors'], indent=2)), title="Error Summary", style="red"))
+
+async def run_submissions(url, count, workers, custom_answer=None, report_path=None):
+    """Orchestrates the submission run."""
+    parser = FormParser(url)
+
+    try:
+        with console.status("[bold cyan]Fetching form details...[/bold cyan]"):
+            details = await parser.fetch_details()
+    except (ValueError, RuntimeError) as e:
+        console.print(f"[bold red]Failed to fetch form:[/bold red] {e}")
+        return
+
+    render_questions_table(details)
+
+    engine = SubmissionEngine(details)
+
+    console.print(f"[bold yellow]Starting {count} submissions with {workers} workers...[/bold yellow]")
 
     with Progress(
         SpinnerColumn(),
@@ -63,22 +82,15 @@ async def run_spam(url, count, workers, custom_answer=None):
         transient=False,
         expand=True
     ) as progress:
-        task = progress.add_task("[green]Spamming...", total=count)
-        
+        task = progress.add_task("[green]Submitting...", total=count)
+
         def update_progress(success):
             progress.update(task, advance=1)
-            
-        await spammer.run(count, workers, custom_text=custom_answer, progress_callback=update_progress)
 
-    console.print(Panel(f"[bold green]Attack Complete![/bold green]\n\n"
-                        f"Requested: {count}\n"
-                        f"Successful: [bold green]{spammer.stats['success']}[/bold green]\n"
-                        f"Failed: [bold red]{spammer.stats['failed']}[/bold red]\n"
-                        f"Retries: [bold yellow]{spammer.stats['retries']}[/bold yellow]",
-                        title="Summary"))
+        await engine.run(count, workers, custom_text=custom_answer,
+                         progress_callback=update_progress, report_path=report_path)
 
-    if spammer.stats['errors']:
-        console.print(Panel(str(json.dumps(spammer.stats['errors'], indent=2)), title="Error Summary", style="red"))
+    render_summary(engine, count, report_path)
 
 class RichHelpCommand(click.Command):
     def format_help(self, ctx, formatter):
@@ -112,7 +124,8 @@ class RichHelpCommand(click.Command):
 @click.option('--count', default=100, help='Number of requests to send', type=int)
 @click.option('--workers', default=50, help='Number of concurrent workers', type=int)
 @click.option('--custom-answer', help='Custom answer for text fields')
-def main(url, count, workers, custom_answer):
+@click.option('--report', 'report', type=click.Path(dir_okay=False), help='Write a JSONL log of every submission to this path')
+def main(url, count, workers, custom_answer, report):
     """Google Forms Spammer - Educational Tool"""
     
     # Interactive mode if URL is not provided
@@ -125,7 +138,7 @@ def main(url, count, workers, custom_answer):
         try:
             while True:
                 url = Prompt.ask("Enter Google Form URL")
-                if "docs.google.com/forms" in url or "forms.gle" in url:
+                if is_google_form_url(url):
                     break
                 console.print("[bold red]Invalid URL![/bold red] Please use a valid Google Forms link.\nExample: [dim]https://docs.google.com/forms/d/e/xxxxx/viewform[/dim]\n")
         except KeyboardInterrupt:
@@ -135,54 +148,16 @@ def main(url, count, workers, custom_answer):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-        # We need to run fetch first to confirm to user? 
-        # Actually, let's just mimic the flow.
-        # But run_spam does fetching. So we just need to get the URL found.
-        
-        # If interactive, we usually want to confirm questions *before* spamming.
-        # My run_spam does it all. Let's refactor run_spam slightly or just ask user valid questions here.
-        # Ideally, we fetch, show, ask confirm, then spam.
-        
-        # Let's do it properly inside an async main wrapper for interactive
         async def interactive_flow():
             parser = FormParser(url)
-            with console.status("[bold cyan]Fetching form details...[/bold cyan]"):
-                details = await parser.fetch_details()
-            
-            if not details:
-                console.print("[bold red]Failed to fetch or parse form.[/bold red]")
+            try:
+                with console.status("[bold cyan]Fetching form details...[/bold cyan]"):
+                    details = await parser.fetch_details()
+            except (ValueError, RuntimeError) as e:
+                console.print(f"[bold red]Failed to fetch form:[/bold red] {e}")
                 return
 
-            # Display Questions Table
-            from rich.table import Table
-            from rich import box
-            
-            # Added padding for spacing and a '#' column
-            table = Table(
-                title="Detected Questions", 
-                box=box.ROUNDED, 
-                show_header=True, 
-                header_style="bold magenta", 
-                expand=True,
-                padding=(0, 2),
-                show_lines=True  # Separate each row with a line
-            )
-            # Use ratios to keep # and Type small, giving space to Text and Options
-            table.add_column("#", style="bold blue", justify="right", no_wrap=True, ratio=1)
-            table.add_column("Type", style="bold cyan", no_wrap=True, ratio=3)
-            # Question Text - White for readability
-            table.add_column("Question Text", style="bold white", ratio=10)
-            # Options - Yellow to stand out
-            table.add_column("Options", style="yellow", ratio=8)
-
-            for i, (q_id, q) in enumerate(details.questions.items(), 1):
-                opts = ", ".join(q.get("options", [])[:3])
-                if len(q.get("options", [])) > 3:
-                     opts += f" (+{len(q.get('options', []))-3} more)"
-                table.add_row(str(i), q["type"], q["text"], opts)
-            
-            console.print(table)
-            console.print()
+            render_questions_table(details)
 
             nonlocal count, workers, custom_answer
             
@@ -231,7 +206,7 @@ def main(url, count, workers, custom_answer):
                 workers = IntPrompt.ask("[:zap:] [bold cyan]Concurrent Workers[/bold cyan]", default=workers)
                 console.print()
                 
-                spammer = AsyncFormSpammer(details)
+                engine = SubmissionEngine(details)
                 
                 with Progress(
                     SpinnerColumn(),
@@ -241,30 +216,24 @@ def main(url, count, workers, custom_answer):
                     transient=False,
                     expand=True
                 ) as progress:
-                    task = progress.add_task("[green]Spamming...", total=count)
+                    task = progress.add_task("[green]Submitting...", total=count)
                     
                     def update_progress(success):
                         progress.update(task, advance=1)
 
-                    await spammer.run(
+                    await engine.run(
                         count, 
                         workers, 
                         custom_text=custom_answer, 
                         custom_config=custom_config,
-                        progress_callback=update_progress
+                        progress_callback=update_progress,
+                        report_path=report
                     )
                     
-                console.print(Panel(f"[bold green]Done![/bold green]\n"
-                                    f"Success: [bold green]{spammer.stats['success']}[/bold green]\n"
-                                    f"Failed: [bold red]{spammer.stats['failed']}[/bold red]\n"
-                                    f"Retries: [bold yellow]{spammer.stats['retries']}[/bold yellow]",
-                                    title="Summary"))
-
-                if spammer.stats['errors']:
-                    console.print(Panel(str(json.dumps(spammer.stats['errors'], indent=2)), title="Error Summary", style="red"))
+                render_summary(engine, count, report)
                 
                 console.print()
-                if not Confirm.ask("[bold cyan]Run another attack?[/bold cyan]"):
+                if not Confirm.ask("[bold cyan]Run another batch?[/bold cyan]"):
                     console.print("[bold green]Goodbye![/bold green]")
                     break
                 console.print()
@@ -277,7 +246,7 @@ def main(url, count, workers, custom_answer):
         
     else:
         # Headless/CLI mode
-        asyncio.run(run_spam(url, count, workers, custom_answer))
+        asyncio.run(run_submissions(url, count, workers, custom_answer, report))
 
 if __name__ == '__main__':
     try:
