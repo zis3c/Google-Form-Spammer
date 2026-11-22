@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Closed-form detection uses the `/closedform` redirect, so it works in any language.
+
+### Fixed
+
+- A closed form now reports "Form is no longer accepting responses" instead of a parse error.
+
 ## [1.1.3] - 2026-11-22
 
 ### Added

@@ -52,12 +52,18 @@ ATTEMPTS = {}
 
 
 async def handle_submit(request):
+    if request.path == "/closed-redirect":
+        raise web.HTTPFound("/closedform")
     if request.path == "/retry":
         ATTEMPTS["/retry"] = ATTEMPTS.get("/retry", 0) + 1
         if ATTEMPTS["/retry"] <= 2:
             return web.Response(status=429, text="rate limited")
         return web.Response(text=CONFIRM, content_type="text/html")
     return web.Response(text=BODIES.get(request.path, UNKNOWN), content_type="text/html")
+
+
+async def handle_closed(request):
+    return web.Response(text="<html><body>Ditutup</body></html>", content_type="text/html")
 
 
 def details_for(port: int, path: str) -> FormDetails:
@@ -119,6 +125,14 @@ async def check_retry(port: int) -> None:
     assert result == (True, None, "recorded"), result
     assert engine.stats["retries"] == 2, engine.stats
     assert engine.stats["success"] == 1, engine.stats
+
+
+async def check_closed(port: int) -> None:
+    engine = SubmissionEngine(details_for(port, "/closed-redirect"))
+    async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
+        result = await engine._send_request(session, {"entry.1": "Siti"})
+    assert result == (False, "Form is no longer accepting responses", "closed"), result
+    assert engine.stats["failed"] == 1, engine.stats
 
 
 def read_report(path: Path):
@@ -204,6 +218,7 @@ def check_generation() -> None:
 async def main() -> None:
     app = web.Application()
     app.router.add_post("/{path:.*}", handle_submit)
+    app.router.add_get("/closedform", handle_closed)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "127.0.0.1", 0)
@@ -214,6 +229,7 @@ async def main() -> None:
         check_classification()
         await check_send(port)
         await check_retry(port)
+        await check_closed(port)
         with tempfile.TemporaryDirectory() as tmp:
             await check_recorded_run(port, Path(tmp))
             await check_rejected_run(port, Path(tmp))

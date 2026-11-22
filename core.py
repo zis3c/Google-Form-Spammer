@@ -200,6 +200,8 @@ class FormParser:
         async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
             try:
                 async with session.get(self.url, headers=headers) as response:
+                    if "/closedform" in str(response.url):
+                        raise RuntimeError("Form is no longer accepting responses")
                     if response.status == 200:
                         html_content = await response.text()
                     else:
@@ -438,6 +440,9 @@ class SubmissionEngine:
                 await asyncio.sleep(random.uniform(0.05, 0.2))
                 
                 async with session.post(url, data=payload, headers=headers) as resp:
+                    if "/closedform" in str(resp.url):
+                        self.stats["failed"] += 1
+                        return False, "Form is no longer accepting responses", "closed"
                     if resp.status == 200:
                         try:
                             body = await resp.text()
