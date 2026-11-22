@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Checkbox Grid support: rows that allow multiple selections now send multiple values.
+- CI workflow that runs the offline tests on push and pull request.
+- Offline test for retry and backoff when Google returns 429.
+
+### Changed
+
+- Verification treats a 200 page without the form's question text as recorded, and detects question text as short as 4 characters.
+
 ## [1.1.2] - 2026-11-22
 
 ### Added

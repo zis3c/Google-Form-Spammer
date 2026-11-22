@@ -72,7 +72,7 @@ def _question_probes(questions) -> list:
         text = question.get("text") if isinstance(question, dict) else str(question)
         text = (text or "").split("\u2014")[0].strip()
         probe = _normalize_text(text)
-        if len(probe) >= 6:
+        if len(probe) >= 4:
             probes.append(probe)
     return sorted(set(probes), key=len, reverse=True)
 
@@ -103,7 +103,7 @@ def classify_submission(body: str, questions=None) -> str:
         matched = _body_has_question(body, questions)
         if matched is True:
             return "rejected"
-        if matched is False and 'role="heading"' in lowered:
+        if matched is False:
             return "recorded"
     if any(marker.lower() in lowered for marker in FORM_VIEW_MARKERS):
         return "rejected"
@@ -258,6 +258,11 @@ class FormParser:
                             q_type == "Time" and len(detail) > 6
                             and isinstance(detail[6], list) and detail[6] and detail[6][0] == 1
                         )
+                        # Grid flag [1] means a row allows multiple selections.
+                        multi = (
+                            q_type == "Multiple Choice Grid" and len(detail) > 11
+                            and isinstance(detail[11], list) and detail[11] and detail[11][0] == 1
+                        )
 
                         parsed_questions[f"entry.{entry_id}"] = {
                             "text": f"{q_text} — {row_label}" if row_label else q_text,
@@ -266,6 +271,7 @@ class FormParser:
                             "required": required,
                             "include_time": include_time,
                             "duration": duration,
+                            "multi": multi,
                         }
 
             # Hidden inputs carry fvv/partialResponse/pageHistory/fbzx, required for the POST
@@ -328,7 +334,10 @@ class SubmissionEngine:
             if custom_config and q_id in custom_config:
                 answer = custom_config[q_id]
             else:
-                if q_type in ["Multiple Choice", "Dropdown", "Linear Scale", "Multiple Choice Grid"]:
+                if q_type == "Multiple Choice Grid" and q_data.get("multi") and q_data["options"]:
+                    k = random.randint(1, min(2, len(q_data["options"])))
+                    answer = random.sample(q_data["options"], k)
+                elif q_type in ["Multiple Choice", "Dropdown", "Linear Scale", "Multiple Choice Grid"]:
                     if q_data["options"]:
                         answer = random.choice(q_data["options"])
                 elif q_type == "Checkboxes":

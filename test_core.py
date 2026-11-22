@@ -32,6 +32,12 @@ LOCALIZED_REJECTED = (
     '<html><body><script>var FB_PUBLIC_LOAD_DATA_ = [["Nama lengkap"]];</script>'
     '<div>Wajib diisi</div></body></html>'
 )
+NO_HEADING_CONFIRM = (
+    '<html><body><div>Terima kasih</div>'
+    '<script>var FB_PUBLIC_LOAD_DATA_ = [];</script></body></html>'
+)
+SHORT_REJECTED = '<html><script>var FB_PUBLIC_LOAD_DATA_ = [["Umur"]];</script></html>'
+CLOSED_CLASS_ONLY = '<div class="freebirdFormviewerViewNoLongerAcceptingResponses">Ditutup</div>'
 UNKNOWN = "<html><body>gateway hiccup</body></html>"
 
 BODIES = {
@@ -41,8 +47,15 @@ BODIES = {
     "/unknown": UNKNOWN,
 }
 
+ATTEMPTS = {}
+
 
 async def handle_submit(request):
+    if request.path == "/retry":
+        ATTEMPTS["/retry"] = ATTEMPTS.get("/retry", 0) + 1
+        if ATTEMPTS["/retry"] <= 2:
+            return web.Response(status=429, text="rate limited")
+        return web.Response(text=CONFIRM, content_type="text/html")
     return web.Response(text=BODIES.get(request.path, UNKNOWN), content_type="text/html")
 
 
@@ -62,6 +75,7 @@ def check_classification() -> None:
     assert classify_submission(CONFIRM) == "recorded"
     assert classify_submission(THANK_YOU) == "recorded"
     assert classify_submission(CLOSED) == "closed"
+    assert classify_submission(CLOSED_CLASS_ONLY) == "closed"
     assert classify_submission(REJECTED) == "rejected"
     assert classify_submission(UNKNOWN) == "unknown"
     assert classify_submission("") == "unknown"
@@ -72,6 +86,8 @@ def check_classification() -> None:
     assert classify_submission(REJECTED, questions) == "rejected"
     assert classify_submission(LOCALIZED_REJECTED, questions) == "rejected"
     assert classify_submission(LOCALIZED_CONFIRM, questions) == "recorded"
+    assert classify_submission(NO_HEADING_CONFIRM, questions) == "recorded"
+    assert classify_submission(SHORT_REJECTED, [{"text": "Umur"}]) == "rejected"
 
 
 async def check_send(port: int) -> None:
@@ -79,7 +95,7 @@ async def check_send(port: int) -> None:
         "/recorded": (True, None, "recorded"),
         "/closed": (False, "Form is no longer accepting responses", "closed"),
         "/rejected": (False, "Answer rejected (not recorded)", "rejected"),
-        "/unknown": (True, None, "unknown"),
+        "/unknown": (True, None, "recorded"),
     }
     for path, want in expected.items():
         engine = SubmissionEngine(details_for(port, path))
@@ -92,6 +108,16 @@ async def check_send(port: int) -> None:
         else:
             assert engine.stats["failed"] == 1, path
             assert engine.stats["success"] == 0, path
+
+
+async def check_retry(port: int) -> None:
+    ATTEMPTS.clear()
+    engine = SubmissionEngine(details_for(port, "/retry"))
+    async with aiohttp.ClientSession(timeout=REQUEST_TIMEOUT) as session:
+        result = await engine._send_request(session, {"entry.1": "Siti"})
+    assert result == (True, None, "recorded"), result
+    assert engine.stats["retries"] == 2, engine.stats
+    assert engine.stats["success"] == 1, engine.stats
 
 
 def read_report(path: Path):
@@ -141,6 +167,9 @@ def check_generation() -> None:
                         "required": False, "include_time": True, "duration": False},
             "entry.2": {"text": "Focused hours", "type": "Time", "options": [],
                         "required": False, "include_time": False, "duration": True},
+            "entry.3": {"text": "Devices", "type": "Multiple Choice Grid",
+                        "options": ["A", "B", "C"], "required": False,
+                        "include_time": False, "duration": False, "multi": True},
         },
         hidden_fields={},
     )
@@ -148,6 +177,7 @@ def check_generation() -> None:
     assert response["entry.1_year"] and response["entry.1_month"] and response["entry.1_day"]
     assert response["entry.1_hour"] and response["entry.1_minute"]
     assert response["entry.2_hour"] and response["entry.2_minute"] and response["entry.2_second"]
+    assert isinstance(response["entry.3"], list) and response["entry.3"]
 
 
 async def main() -> None:
@@ -162,6 +192,7 @@ async def main() -> None:
         check_generation()
         check_classification()
         await check_send(port)
+        await check_retry(port)
         with tempfile.TemporaryDirectory() as tmp:
             await check_recorded_run(port, Path(tmp))
             await check_rejected_run(port, Path(tmp))
