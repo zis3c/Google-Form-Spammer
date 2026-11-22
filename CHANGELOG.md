@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-22
+
 ### Fixed
 
 - Recognize Google's "Thank you for your response." confirmation page so successful submissions are not misclassified as rejected.
@@ -37,6 +39,7 @@ All notable changes to this project are documented here. The format follows
 
 Earlier release with the web configurator and form parsing. See the [v1.0.0 release](https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.0.0).
 
-[Unreleased]: https://github.com/zis3c/Google-Form-Spammer/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/zis3c/Google-Form-Spammer/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.1.1
 [1.1.0]: https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.1.0
 [1.0.0]: https://github.com/zis3c/Google-Form-Spammer/releases/tag/v1.0.0
