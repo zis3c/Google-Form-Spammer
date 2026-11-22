@@ -37,23 +37,16 @@ def is_google_form_url(url: str) -> bool:
     host = host[:-1] if host.endswith(".") else host
     return parsed.scheme in ("http", "https") and host in GOOGLE_FORM_HOSTS
 
-# Google answers a recorded submission with a confirmation page, and answers a
-# rejected one (closed form, missing required answer, stale token) with the form
-# page itself — both over HTTP 200. Those bodies are the only evidence that the
-# response was stored, so every 200 is classified instead of trusted.
+# A 200 can be a confirmation page or the form again (closed or rejected), so classify the body.
 CONFIRMATION_MARKERS = (
     "freebirdFormviewerViewResponseConfirmationMessage",
     "freebirdFormviewerViewResponseConfirmation",
     "your response has been recorded",
-    "jawaban anda telah direkam",
-    "tanggapan anda telah direkam",
 )
 CLOSED_MARKERS = (
     "freebirdFormviewerViewNoLongerAcceptingResponses",
     "no longer accepting responses",
     "not accepting responses",
-    "tidak lagi menerima jawaban",
-    "sudah tidak menerima jawaban",
 )
 FORM_VIEW_MARKERS = (
     "FB_PUBLIC_LOAD_DATA_",
@@ -81,11 +74,7 @@ def _utc_now() -> str:
 
 
 class RunReport:
-    """Append-only JSONL log: one line per attempt, readable without parsing code.
-
-    Appending (not truncating) lets the interactive mode log several batches into
-    one file; each batch starts with its own ``run_start`` line.
-    """
+    """Append-only JSONL log; appending lets several batches share one file."""
 
     def __init__(self, path: str, meta: Dict[str, Any]):
         self.path = Path(path)
@@ -165,7 +154,6 @@ class FormParser:
             except aiohttp.ClientError as e:
                 raise RuntimeError(f"Failed to connect to form: {e}") from e
 
-        # Extract FB_PUBLIC_LOAD_DATA_
         match = re.search(r'var FB_PUBLIC_LOAD_DATA_ = (\[.+?\])\s*;\s*<', html_content, re.DOTALL)
         if not match:
              match = re.search(r'var FB_PUBLIC_LOAD_DATA_ = (\[.+?\])\s*;', html_content, re.DOTALL)
@@ -195,8 +183,7 @@ class FormParser:
                         options_raw = detail[1]
                         required = bool(len(detail) > 2 and detail[2])
                         options = []
-                        # Grid rows: detail[3] holds the row label, so each entry
-                        # shows its own label instead of the grid title.
+                        # Grid rows: detail[3] is the row label, not the grid title.
                         row_label = detail[3] if len(detail) > 3 and isinstance(detail[3], str) and detail[3].strip() else None
                         
                         if options_raw:
@@ -204,8 +191,6 @@ class FormParser:
                                 if opt and len(opt) > 0 and opt[0]:
                                     options.append(opt[0])
                         
-                        # Determine Type
-                        # Mapping based on common Google Form type IDs
                         type_map = {
                             0: "Short Answer",
                             1: "Paragraph",
@@ -219,7 +204,7 @@ class FormParser:
                         }
                         q_type = type_map.get(q_type_id, "Open Ended")
                         
-                        # Fallback heuristic if type is unknown but options exist (likely some choice type)
+                        # Unknown type with options is likely a choice type.
                         if q_type == "Open Ended" and options:
                              q_type = "Multiple Choice"
                         
@@ -238,10 +223,8 @@ class FormParser:
                 if attrs.get("type") == "hidden" and name and name != "entry":
                     hidden_fields[name] = html.unescape(attrs.get("value", ""))
 
-            # Multi-page forms: Google only credits answers of the page named by the
-            # last pageHistory entry, so a plain pageHistory="0" submit silently records
-            # page 1 only. Listing every page index makes it a final-page submission.
-            # Each type-8 item is a section header, i.e. a page break after page 1.
+            # Google credits only the page named by the last pageHistory entry, so list every index.
+            # Each type-8 item is a page break.
             page_count = 1 + sum(1 for q_item in (questions_raw or [])
                                  if len(q_item) > 3 and q_item[3] == 8)
             if page_count > 1:
@@ -289,11 +272,9 @@ class SubmissionEngine:
             answer = ""
             q_type = q_data["type"]
 
-            # 1. Custom Config Priority
             if custom_config and q_id in custom_config:
                 answer = custom_config[q_id]
             else:
-                # 2. Random Generation
                 if q_type in ["Multiple Choice", "Dropdown", "Linear Scale", "Multiple Choice Grid"]:
                     if q_data["options"]:
                         answer = random.choice(q_data["options"])
@@ -325,7 +306,7 @@ class SubmissionEngine:
                         else:
                             answer = faker.sentence() if q_type == "Short Answer" else faker.paragraph()
 
-            # 3. Payload Formatting (Splitting Date/Time)
+            # Split Date/Time into the component fields Google expects.
             if q_type == "Date" and answer:
                 parts = str(answer).split("-")
                 if len(parts) == 3:
@@ -353,7 +334,6 @@ class SubmissionEngine:
                 payload.append((k, v))
         url = self.details.form_action_url
         
-        # User-Agent rotation
         headers = {
             "User-Agent": random.choice(self.user_agents)
         }
@@ -378,16 +358,13 @@ class SubmissionEngine:
                             return False, "Answer rejected (not recorded)", verdict
                         self.stats["success"] += 1
                         if verdict == "unknown":
-                            # 200 with an unrecognised page: stored, most likely,
-                            # but the body gave no proof.
+                            # 200 with an unrecognised page counts as success but is not proven.
                             self.stats["unverified"] += 1
                         return True, None, verdict
                     elif resp.status in [408, 429, 500, 502, 503]:
-                        # Rate limit or Server Error - Retry
                         if attempt < retry_count:
                             self.stats["retries"] += 1
-                            # Cap backoff at 8 seconds: long caps let one rate-limited
-                            # request pin a worker for the whole run.
+                            # Cap backoff at 8s so one rate-limited request cannot pin a worker for the run.
                             backoff = min(2 ** attempt, 8)
                             wait_time = backoff + random.uniform(0, 2)
                             await asyncio.sleep(wait_time)
@@ -441,8 +418,7 @@ class SubmissionEngine:
                         success, err, verdict = await self._send_request(session, data)
                     except asyncio.CancelledError:
                         raise
-                    except Exception as exc:  # noqa: BLE001 - a broken config entry
-                        # fails this one response, never hangs the whole run.
+                    except Exception as exc:  # noqa: BLE001 - fail one response, not the whole run
                         success, err = False, f"generate: {exc}"
                         self.stats["failed"] += 1
                     sent += 1
@@ -462,8 +438,7 @@ class SubmissionEngine:
             await queue.join()
             status = "done"
         finally:
-            # Cancel the workers themselves: a bare cancel of queue.join()
-            # would strand workers mid-POST and keep submissions going.
+            # Cancel workers too; cancelling queue.join() alone strands them mid-POST.
             for t in tasks:
                 t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)

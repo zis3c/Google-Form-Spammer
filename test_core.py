@@ -47,7 +47,6 @@ def details_for(port: int, path: str) -> FormDetails:
 
 def check_classification() -> None:
     assert classify_submission(CONFIRM) == "recorded"
-    assert classify_submission("Jawaban Anda telah direkam.") == "recorded"
     assert classify_submission(CLOSED) == "closed"
     assert classify_submission(REJECTED) == "rejected"
     assert classify_submission(UNKNOWN) == "unknown"

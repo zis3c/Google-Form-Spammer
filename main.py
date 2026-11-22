@@ -10,7 +10,6 @@ from core import FormParser, SubmissionEngine, is_google_form_url
 console = Console()
 
 def render_questions_table(details) -> None:
-    """Render the detected-questions table."""
     from rich.table import Table
     from rich import box
 
@@ -58,7 +57,6 @@ def render_summary(engine, count, report_path=None) -> None:
         console.print(Panel(str(json.dumps(stats['errors'], indent=2)), title="Error Summary", style="red"))
 
 async def run_submissions(url, count, workers, custom_answer=None, report_path=None):
-    """Orchestrates the submission run."""
     parser = FormParser(url)
 
     try:
@@ -128,7 +126,6 @@ class RichHelpCommand(click.Command):
 def main(url, count, workers, custom_answer, report):
     """Google Forms Spammer - Educational Tool"""
     
-    # Interactive mode if URL is not provided
     if not url:
         console.print(r"""[bold red]
 ╺━┓╻┏━┓┏━┓┏━╸   ┏━╸┏━╸┏━┓┏━┓┏┳┓   ┏━┓┏━┓┏━┓┏┳┓┏┳┓┏━╸┏━┓
@@ -164,7 +161,6 @@ def main(url, count, workers, custom_answer, report):
             while True:
                 custom_config = {}
 
-                # Mode Selection Panel
                 mode_panel = Panel(
                     "[bold green]1. Random Mode[/bold green]\n"
                     "   [dim]Automatically fills form with realistic random data.[/dim]\n\n"
@@ -185,7 +181,6 @@ def main(url, count, workers, custom_answer, report):
                 if mode_input == "2":
                     from configurator import run_configurator
                     
-                    # Launching Panel
                     console.print(Panel(
                         "[bold]Server running at:[/bold] [link=http://localhost:8080]http://localhost:8080[/link]\n"
                         "[dim](Click the link above or open in browser)[/dim]",
@@ -245,7 +240,6 @@ def main(url, count, workers, custom_answer, report):
             return
         
     else:
-        # Headless/CLI mode
         asyncio.run(run_submissions(url, count, workers, custom_answer, report))
 
 if __name__ == '__main__':

@@ -1,0 +1,24 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [Unreleased]
+
+### Added
+
+- Submission verification: every `formResponse` HTTP 200 is classified as recorded, rejected, closed, or unverified. Rejected and closed submissions now count as failures, and unverified ones are reported separately.
+- `--report <path>` writes an append-only JSONL log with one line per attempt and a run summary.
+- URL allow-list that accepts only Google Forms hosts.
+- Multi-page form support via `pageHistory`.
+- Offline `test_core.py` covering response classification, verification stats, and the JSONL report.
+
+### Changed
+
+- Retry backoff is capped at 8 seconds.
+- Non-transient HTTP errors (400, 401, 403, 404, and similar) are no longer retried.
+- Form fetch and parse errors are reported instead of being swallowed.
+
+### Fixed
+
+- Date, Time, and checkbox answers are sent in the format Google Forms expects.
