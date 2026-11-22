@@ -22,3 +22,7 @@ All notable changes to this project are documented here. The format follows
 ### Fixed
 
 - Date, Time, and checkbox answers are sent in the format Google Forms expects.
+
+### Credits
+
+- Thanks to [@BadryansahBangsawan](https://github.com/BadryansahBangsawan) for the submission verification, the `--report` JSONL log, the Google Forms URL allow-list, multi-page `pageHistory`, the Date/Time/checkbox fixes, the retry cleanup, and the offline `test_core.py` test. Submitted in #1 and merged in curated form in #2.
