@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format follows
 - Checkbox Grid support: rows that allow multiple selections now send multiple values.
 - CI workflow that runs the offline tests on push and pull request.
 - Offline test for retry and backoff when Google returns 429.
+- Regex response validation is read from the form and generated text answers are checked against it.
 
 ### Changed
 

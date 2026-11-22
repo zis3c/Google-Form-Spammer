@@ -12,7 +12,7 @@ from pathlib import Path
 import aiohttp
 from aiohttp import web
 
-from core import FormDetails, SubmissionEngine, classify_submission, REQUEST_TIMEOUT
+from core import FormDetails, SubmissionEngine, classify_submission, REQUEST_TIMEOUT, _find_regex
 
 CONFIRM = '<div class="freebirdFormviewerViewResponseConfirmationMessage">Your response has been recorded.</div>'
 THANK_YOU = (
@@ -172,7 +172,7 @@ def check_generation() -> None:
                         "options": ["A", "B", "C"], "required": False,
                         "include_time": False, "duration": False, "multi": True},
             "entry.4": {"text": "Employee ID", "type": "Short Answer",
-                        "options": [], "required": True},
+                        "options": [], "required": True, "regex": r"^EMP-[0-9]{4}$"},
             "entry.5": {"text": "Work email", "type": "Short Answer",
                         "options": [], "required": True},
             "entry.6": {"text": "Age", "type": "Short Answer",
@@ -196,6 +196,9 @@ def check_generation() -> None:
         assert 18 <= int(response["entry.6"]) <= 65, response["entry.6"]
         assert len(response["entry.7"]) <= 200, len(response["entry.7"])
         assert len(response["entry.8"]) >= 2, response["entry.8"]
+
+    assert _find_regex([[4, 299, ["^EMP-[0-9]{4}$"]]]) == r"^EMP-[0-9]{4}$"
+    assert _find_regex(None) is None
 
 
 async def main() -> None:

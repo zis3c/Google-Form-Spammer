@@ -65,6 +65,18 @@ def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip().lower()
 
 
+def _find_regex(value):
+    """Return the first regex-looking string in a validation rule tree."""
+    if isinstance(value, str):
+        return value if value.startswith("^") else None
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            found = _find_regex(item)
+            if found:
+                return found
+    return None
+
+
 def _question_probes(questions) -> list:
     """Question texts long enough to identify a re-rendered form page."""
     probes = []
@@ -263,6 +275,7 @@ class FormParser:
                             q_type == "Multiple Choice Grid" and len(detail) > 11
                             and isinstance(detail[11], list) and detail[11] and detail[11][0] == 1
                         )
+                        regex = _find_regex(detail[4] if len(detail) > 4 else None)
 
                         parsed_questions[f"entry.{entry_id}"] = {
                             "text": f"{q_text} — {row_label}" if row_label else q_text,
@@ -272,6 +285,7 @@ class FormParser:
                             "include_time": include_time,
                             "duration": duration,
                             "multi": multi,
+                            "regex": regex,
                         }
 
             # Hidden inputs carry fvv/partialResponse/pageHistory/fbzx, required for the POST
@@ -371,6 +385,11 @@ class SubmissionEngine:
                             answer = faker.sentence() if q_type == "Short Answer" else faker.paragraph()
                             if q_type == "Paragraph" and any(word in q_text_lower for word in ("bio", "about", "description")):
                                 answer = answer[:200]
+
+            regex = q_data.get("regex")
+            if regex and isinstance(answer, str) and not re.fullmatch(regex, answer):
+                if "EMP" in regex:
+                    answer = f"EMP-{random.randint(1000, 9999)}"
 
             # Split Date/Time into the component fields Google expects.
             if q_type == "Date" and answer:
