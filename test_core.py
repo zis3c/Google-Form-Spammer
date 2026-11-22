@@ -5,6 +5,7 @@ Starts a throwaway local aiohttp server; never contacts Google.
 """
 import asyncio
 import json
+import re
 import tempfile
 from pathlib import Path
 
@@ -170,14 +171,31 @@ def check_generation() -> None:
             "entry.3": {"text": "Devices", "type": "Multiple Choice Grid",
                         "options": ["A", "B", "C"], "required": False,
                         "include_time": False, "duration": False, "multi": True},
+            "entry.4": {"text": "Employee ID", "type": "Short Answer",
+                        "options": [], "required": True},
+            "entry.5": {"text": "Work email", "type": "Short Answer",
+                        "options": [], "required": True},
+            "entry.6": {"text": "Age", "type": "Short Answer",
+                        "options": [], "required": True},
+            "entry.7": {"text": "Short bio", "type": "Paragraph",
+                        "options": [], "required": True},
+            "entry.8": {"text": "Tools you use", "type": "Checkboxes",
+                        "options": ["A", "B", "C"], "required": True},
         },
         hidden_fields={},
     )
-    response = SubmissionEngine(details).generate_response()
-    assert response["entry.1_year"] and response["entry.1_month"] and response["entry.1_day"]
-    assert response["entry.1_hour"] and response["entry.1_minute"]
-    assert response["entry.2_hour"] and response["entry.2_minute"] and response["entry.2_second"]
-    assert isinstance(response["entry.3"], list) and response["entry.3"]
+    engine = SubmissionEngine(details)
+    for _ in range(20):
+        response = engine.generate_response()
+        assert response["entry.1_year"] and response["entry.1_month"] and response["entry.1_day"]
+        assert response["entry.1_hour"] and response["entry.1_minute"]
+        assert response["entry.2_hour"] and response["entry.2_minute"] and response["entry.2_second"]
+        assert isinstance(response["entry.3"], list) and response["entry.3"]
+        assert re.fullmatch(r"EMP-\d{4}", response["entry.4"]), response["entry.4"]
+        assert "@" in response["entry.5"], response["entry.5"]
+        assert 18 <= int(response["entry.6"]) <= 65, response["entry.6"]
+        assert len(response["entry.7"]) <= 200, len(response["entry.7"])
+        assert len(response["entry.8"]) >= 2, response["entry.8"]
 
 
 async def main() -> None:

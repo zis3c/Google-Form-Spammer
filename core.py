@@ -342,7 +342,7 @@ class SubmissionEngine:
                         answer = random.choice(q_data["options"])
                 elif q_type == "Checkboxes":
                     if q_data["options"]:
-                        k = random.randint(1, len(q_data["options"]))
+                        k = random.randint(min(2, len(q_data["options"])), len(q_data["options"]))
                         answer = random.sample(q_data["options"], k)
                 elif q_type == "Date":
                     answer = str(faker.date_between(start_date='-1y', end_date='today'))
@@ -355,18 +355,22 @@ class SubmissionEngine:
                         q_text_lower = q_data["text"].lower()
                         if "email" in q_text_lower:
                             answer = faker.email()
+                        elif "employee id" in q_text_lower or "staff id" in q_text_lower:
+                            answer = f"EMP-{random.randint(1000, 9999)}"
                         elif "name" in q_text_lower:
                             answer = faker.name()
                         elif "phone" in q_text_lower or "number" in q_text_lower:
                             answer = faker.phone_number()
                         elif "age" in q_text_lower:
-                            answer = str(random.randint(18, 99))
+                            answer = str(random.randint(18, 65))
                         elif "time" in q_text_lower:
                             answer = faker.time(pattern="%H:%M")
                         elif "date" in q_text_lower:
                             answer = str(faker.date_between(start_date='-30y', end_date='today'))
                         else:
                             answer = faker.sentence() if q_type == "Short Answer" else faker.paragraph()
+                            if q_type == "Paragraph" and any(word in q_text_lower for word in ("bio", "about", "description")):
+                                answer = answer[:200]
 
             # Split Date/Time into the component fields Google expects.
             if q_type == "Date" and answer:

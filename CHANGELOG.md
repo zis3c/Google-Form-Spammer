@@ -14,6 +14,8 @@ All notable changes to this project are documented here. The format follows
 ### Changed
 
 - Verification treats a 200 page without the form's question text as recorded, and detects question text as short as 4 characters.
+- Text answers follow common validation rules: employee IDs use `EMP-1234`, ages stay within 18-65, and bio or description answers are capped at 200 characters.
+- Checkbox answers select at least two options when the question has two or more.
 
 ## [1.1.2] - 2026-11-22
 
