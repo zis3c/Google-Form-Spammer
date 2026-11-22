@@ -20,8 +20,17 @@ THANK_YOU = (
 )
 CLOSED = '<div class="freebirdFormviewerViewNoLongerAcceptingResponses">This form is no longer accepting responses.</div>'
 REJECTED = (
-    '<html><script>var FB_PUBLIC_LOAD_DATA_ = [[]];</script>'
+    '<html><script>var FB_PUBLIC_LOAD_DATA_ = [["Nama lengkap"]];</script>'
     '<div class="freebirdFormviewerViewItemsItemErrorMessage">This is a required question</div></html>'
+)
+LOCALIZED_CONFIRM = (
+    '<html><body><div role="heading" aria-level="1">Acara</div>'
+    '<div>Terima kasih atas jawapan anda.</div>'
+    '<script>var FB_PUBLIC_LOAD_DATA_ = [];</script></body></html>'
+)
+LOCALIZED_REJECTED = (
+    '<html><body><script>var FB_PUBLIC_LOAD_DATA_ = [["Nama lengkap"]];</script>'
+    '<div>Wajib diisi</div></body></html>'
 )
 UNKNOWN = "<html><body>gateway hiccup</body></html>"
 
@@ -58,6 +67,11 @@ def check_classification() -> None:
     assert classify_submission("") == "unknown"
     # A confirmation page wins even when it also carries the form script marker.
     assert classify_submission(CONFIRM + "FB_PUBLIC_LOAD_DATA_") == "recorded"
+    # With the form's questions, classification does not depend on the page language.
+    questions = [{"text": "Nama lengkap"}]
+    assert classify_submission(REJECTED, questions) == "rejected"
+    assert classify_submission(LOCALIZED_REJECTED, questions) == "rejected"
+    assert classify_submission(LOCALIZED_CONFIRM, questions) == "recorded"
 
 
 async def check_send(port: int) -> None:
@@ -118,6 +132,24 @@ async def check_rejected_run(port: int, tmp: Path) -> None:
     assert all(not line["ok"] and line["verified"] == "rejected" for line in responses)
 
 
+def check_generation() -> None:
+    details = FormDetails(
+        url="offline",
+        form_action_url="offline",
+        questions={
+            "entry.1": {"text": "Start date", "type": "Date", "options": [],
+                        "required": False, "include_time": True, "duration": False},
+            "entry.2": {"text": "Focused hours", "type": "Time", "options": [],
+                        "required": False, "include_time": False, "duration": True},
+        },
+        hidden_fields={},
+    )
+    response = SubmissionEngine(details).generate_response()
+    assert response["entry.1_year"] and response["entry.1_month"] and response["entry.1_day"]
+    assert response["entry.1_hour"] and response["entry.1_minute"]
+    assert response["entry.2_hour"] and response["entry.2_minute"] and response["entry.2_second"]
+
+
 async def main() -> None:
     app = web.Application()
     app.router.add_post("/{path:.*}", handle_submit)
@@ -127,6 +159,7 @@ async def main() -> None:
     await site.start()
     port = runner.addresses[0][1]
     try:
+        check_generation()
         check_classification()
         await check_send(port)
         with tempfile.TemporaryDirectory() as tmp:

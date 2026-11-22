@@ -57,8 +57,41 @@ FORM_VIEW_MARKERS = (
 )
 
 
-def classify_submission(body: str) -> str:
-    """Classify a formResponse body: recorded, closed, rejected, or unknown."""
+def _normalize_text(value: str) -> str:
+    """Lowercase, unescape HTML and JSON, and collapse whitespace."""
+    value = html.unescape(value or "")
+    value = re.sub(r"\\u([0-9a-fA-F]{4})", lambda match: chr(int(match.group(1), 16)), value)
+    value = value.replace('\\"', '"').replace("\\/", "/")
+    return re.sub(r"\s+", " ", value).strip().lower()
+
+
+def _question_probes(questions) -> list:
+    """Question texts long enough to identify a re-rendered form page."""
+    probes = []
+    for question in questions or ():
+        text = question.get("text") if isinstance(question, dict) else str(question)
+        text = (text or "").split("\u2014")[0].strip()
+        probe = _normalize_text(text)
+        if len(probe) >= 6:
+            probes.append(probe)
+    return sorted(set(probes), key=len, reverse=True)
+
+
+def _body_has_question(body: str, questions):
+    """True/False when the form's questions can identify the page, None if no probe."""
+    probes = _question_probes(questions)
+    if not probes:
+        return None
+    normalized = _normalize_text(body)
+    return any(probe in normalized for probe in probes)
+
+
+def classify_submission(body: str, questions=None) -> str:
+    """Classify a formResponse body: recorded, closed, rejected, or unknown.
+
+    questions makes the check language-agnostic: a re-rendered form contains its
+    question text, a confirmation page does not.
+    """
     if not body:
         return "unknown"
     lowered = body.lower()
@@ -66,6 +99,12 @@ def classify_submission(body: str) -> str:
         return "recorded"
     if any(marker.lower() in lowered for marker in CLOSED_MARKERS):
         return "closed"
+    if questions:
+        matched = _body_has_question(body, questions)
+        if matched is True:
+            return "rejected"
+        if matched is False and 'role="heading"' in lowered:
+            return "recorded"
     if any(marker.lower() in lowered for marker in FORM_VIEW_MARKERS):
         return "rejected"
     return "unknown"
@@ -210,11 +249,23 @@ class FormParser:
                         if q_type == "Open Ended" and options:
                              q_type = "Multiple Choice"
                         
+                        # Date+time needs hour/minute; duration time needs seconds.
+                        include_time = (
+                            q_type == "Date" and len(detail) > 7
+                            and isinstance(detail[7], list) and detail[7] and detail[7][0] == 1
+                        )
+                        duration = (
+                            q_type == "Time" and len(detail) > 6
+                            and isinstance(detail[6], list) and detail[6] and detail[6][0] == 1
+                        )
+
                         parsed_questions[f"entry.{entry_id}"] = {
                             "text": f"{q_text} — {row_label}" if row_label else q_text,
                             "type": q_type,
                             "options": options,
-                            "required": required
+                            "required": required,
+                            "include_time": include_time,
+                            "duration": duration,
                         }
 
             # Hidden inputs carry fvv/partialResponse/pageHistory/fbzx, required for the POST
@@ -313,14 +364,23 @@ class SubmissionEngine:
                 parts = str(answer).split("-")
                 if len(parts) == 3:
                     response[f"{q_id}_year"], response[f"{q_id}_month"], response[f"{q_id}_day"] = parts
+                    if q_data.get("include_time"):
+                        hour, minute = faker.time(pattern="%H:%M").split(":")
+                        response[f"{q_id}_hour"] = hour
+                        response[f"{q_id}_minute"] = minute
                 else:
                     response[q_id] = answer
             elif q_type == "Time" and answer:
-                parts = str(answer).split(":")
-                if len(parts) >= 2:
-                    response[f"{q_id}_hour"], response[f"{q_id}_minute"] = parts[0], parts[1]
+                if q_data.get("duration"):
+                    response[f"{q_id}_hour"] = f"{random.randint(0, 8):02d}"
+                    response[f"{q_id}_minute"] = f"{random.randint(0, 59):02d}"
+                    response[f"{q_id}_second"] = f"{random.randint(0, 59):02d}"
                 else:
-                    response[q_id] = answer
+                    parts = str(answer).split(":")
+                    if len(parts) >= 2:
+                        response[f"{q_id}_hour"], response[f"{q_id}_minute"] = parts[0], parts[1]
+                    else:
+                        response[q_id] = answer
             else:
                 response[q_id] = answer
 
@@ -351,7 +411,7 @@ class SubmissionEngine:
                             body = await resp.text()
                         except Exception:
                             body = ""
-                        verdict = classify_submission(body)
+                        verdict = classify_submission(body, self.details.questions.values())
                         if verdict == "closed":
                             self.stats["failed"] += 1
                             return False, "Form is no longer accepting responses", verdict

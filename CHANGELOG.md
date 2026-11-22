@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Language-agnostic response classification: a re-rendered form is detected by its own question text, so confirmation pages are not misread when the form is not in English.
+- Date questions with time now send hour and minute; duration Time questions now send seconds.
+
+### Fixed
+
+- Date+time and duration answers are sent with all component fields Google expects.
+
 ## [1.1.1] - 2026-11-22
 
 ### Fixed
