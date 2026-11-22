@@ -14,6 +14,10 @@ from aiohttp import web
 from core import FormDetails, SubmissionEngine, classify_submission, REQUEST_TIMEOUT
 
 CONFIRM = '<div class="freebirdFormviewerViewResponseConfirmationMessage">Your response has been recorded.</div>'
+THANK_YOU = (
+    '<html><title>Event RSVP</title><body>Thank you for your response.'
+    '<script>var FB_PUBLIC_LOAD_DATA_ = [[]];</script></body></html>'
+)
 CLOSED = '<div class="freebirdFormviewerViewNoLongerAcceptingResponses">This form is no longer accepting responses.</div>'
 REJECTED = (
     '<html><script>var FB_PUBLIC_LOAD_DATA_ = [[]];</script>'
@@ -47,6 +51,7 @@ def details_for(port: int, path: str) -> FormDetails:
 
 def check_classification() -> None:
     assert classify_submission(CONFIRM) == "recorded"
+    assert classify_submission(THANK_YOU) == "recorded"
     assert classify_submission(CLOSED) == "closed"
     assert classify_submission(REJECTED) == "rejected"
     assert classify_submission(UNKNOWN) == "unknown"

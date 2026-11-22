@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Recognize Google's "Thank you for your response." confirmation page so successful submissions are not misclassified as rejected.
+
 ## [1.1.0] - 2026-11-22
 
 ### Added

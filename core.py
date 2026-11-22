@@ -42,6 +42,8 @@ CONFIRMATION_MARKERS = (
     "freebirdFormviewerViewResponseConfirmationMessage",
     "freebirdFormviewerViewResponseConfirmation",
     "your response has been recorded",
+    "your responses have been recorded",
+    "thank you for your response",
 )
 CLOSED_MARKERS = (
     "freebirdFormviewerViewNoLongerAcceptingResponses",
